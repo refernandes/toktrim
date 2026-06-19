@@ -12,34 +12,57 @@ mkdir -p "$SKILLS_DIR"
 mkdir -p "$MCP_DIR"
 
 # 2. Instalando Dependências CLI (Os Motores Reais)
-echo "⚙️  Instalando motores de compressão e CLIs reais..."
+echo "⚙️  Instalando motores de compressão e CLIs reais diretamente da fonte..."
 
-# Repomix (Gerador de AST/Mapas)
-if ! command -v repomix &> /dev/null; then
-    echo "📦 Instalando repomix globalmente..."
-    npm install -g repomix
-else
-    echo "✔️  Repomix já instalado."
-fi
+# 2.1 Repomix (Yamada - Oficial via NPM)
+echo "📦 Baixando e instalando repomix..."
+npm install -g repomix
 
-# RTK e Headroom (Avisos de compilação)
+# 2.2 RTK (Rust Token Killer)
+echo "🦀 Baixando e compilando RTK (Rust Token Killer)..."
 if ! command -v rtk &> /dev/null; then
-    echo "⚠️  RTK (Rust Token Killer) não encontrado no PATH."
-    echo "👉 Recomendação: Execute 'cargo install rtk' (ou clone o repositório original do RTK e faça o build)."
-fi
-
-if [ ! -f "$MCP_DIR/headroom_env/bin/headroom" ]; then
-    echo "⚠️  Headroom Compressor não encontrado no diretório do MCP."
-    echo "👉 Recomendação: Instale o ambiente virtual Python do Headroom em $MCP_DIR/headroom_env"
-fi
-
-# Codebase Memory MCP (DeusData)
-if [ ! -d "$MCP_DIR/codebase-memory-mcp" ]; then
-    echo "🧠 Clonando Codebase Memory MCP (DeusData)..."
-    git clone https://github.com/DeusData/codebase-memory-mcp.git "$MCP_DIR/codebase-memory-mcp"
-    echo "👉 Codebase MCP instalado em $MCP_DIR/codebase-memory-mcp. Talvez seja necessário rodar npm install ou pip install lá dentro dependendo da stack."
+    # Clona do repositorio e compila
+    git clone https://github.com/refernandes/rtk.git /tmp/rtk || echo "Falha ao clonar RTK. Verifique se o repo existe."
+    if [ -d "/tmp/rtk" ]; then
+        cd /tmp/rtk
+        cargo build --release
+        mkdir -p ~/.cargo/bin
+        cp target/release/rtk ~/.cargo/bin/
+        cd - > /dev/null
+        rm -rf /tmp/rtk
+        export PATH="$HOME/.cargo/bin:$PATH"
+    fi
 else
-    echo "✔️  Codebase Memory MCP já presente."
+    echo "✔️  RTK já instalado."
+fi
+
+# 2.3 Headroom Compressor
+echo "🧠 Baixando e provisionando Headroom Compressor..."
+if [ ! -d "$MCP_DIR/headroom_env" ]; then
+    git clone https://github.com/DeusData/headroom.git /tmp/headroom || echo "Falha ao clonar Headroom."
+    if [ -d "/tmp/headroom" ]; then
+        python3 -m venv "$MCP_DIR/headroom_env"
+        source "$MCP_DIR/headroom_env/bin/activate"
+        cd /tmp/headroom
+        pip install -r requirements.txt || pip install .
+        cd - > /dev/null
+        rm -rf /tmp/headroom
+        deactivate
+    fi
+else
+    echo "✔️  Headroom já provisionado em $MCP_DIR/headroom_env."
+fi
+
+# 2.4 Codebase Memory MCP (DeusData)
+echo "🧠 Baixando e provisionando Codebase Memory MCP (DeusData)..."
+if [ ! -d "$MCP_DIR/codebase-memory-mcp" ]; then
+    git clone https://github.com/DeusData/codebase-memory-mcp.git "$MCP_DIR/codebase-memory-mcp"
+    cd "$MCP_DIR/codebase-memory-mcp"
+    npm install
+    npm run build
+    cd - > /dev/null
+else
+    echo "✔️  Codebase Memory MCP já provisionado e buildado."
 fi
 
 # 3. Copiando as Skills (Instruções do Agente)
