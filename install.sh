@@ -91,7 +91,7 @@ You are equipped with the ultimate Context Engineering stack. You MUST use these
 
 - **RTK (Rust Token Killer):** ALWAYS prefix CLI commands with \`rtk\` (e.g., \`rtk npm run build\`, \`rtk grep \"foo\"\`, \`rtk log\`). This filters noise and saves 90% of tokens.
 - **Repomix (RepoMap):** When entering a new project or searching for architecture, NEVER read random files. Run \`repomix --compress --no-files\` to generate a lightweight AST map of the repository, read it, and then target specific files.
-- **Headroom (AST Compressor):** When forced to read large log files or complex unmapped source code, use the Headroom CLI (\`/Users/refernan/.gemini/antigravity-cli/mcp/headroom_env/bin/headroom\`) to minify the context before ingesting it.
+- **Headroom (AST Compressor):** When forced to read large log files or complex unmapped source code, use the Headroom CLI (\`~/.gemini/antigravity-cli/mcp/headroom_env/bin/headroom\`) to minify the context before ingesting it.
 - **Codebase-Memory-MCP:** Always use your \`codebase-memory-mcp\` tools (\`trace_path\`, \`search_graph\`) to understand side-effects and relations instead of relying on regex grep.
 
 Use this stack proactively to maintain Maximum Viable Context with minimal tokens.
