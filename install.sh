@@ -33,6 +33,15 @@ if [ ! -f "$MCP_DIR/headroom_env/bin/headroom" ]; then
     echo "👉 Recomendação: Instale o ambiente virtual Python do Headroom em $MCP_DIR/headroom_env"
 fi
 
+# Codebase Memory MCP (DeusData)
+if [ ! -d "$MCP_DIR/codebase-memory-mcp" ]; then
+    echo "🧠 Clonando Codebase Memory MCP (DeusData)..."
+    git clone https://github.com/DeusData/codebase-memory-mcp.git "$MCP_DIR/codebase-memory-mcp"
+    echo "👉 Codebase MCP instalado em $MCP_DIR/codebase-memory-mcp. Talvez seja necessário rodar npm install ou pip install lá dentro dependendo da stack."
+else
+    echo "✔️  Codebase Memory MCP já presente."
+fi
+
 # 3. Copiando as Skills (Instruções do Agente)
 echo "📦 Instalando Skills de Economia..."
 cp -r ./headroom-economy "$SKILLS_DIR/"
