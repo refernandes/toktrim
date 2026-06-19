@@ -15,6 +15,7 @@ Em vez de permitir que a IA leia dezenas de arquivos inteiros ou rode comandos l
 2. **Repomix:** Gera um Abstract Syntax Tree (AST) e mapa estrutural da arquitetura do repositório em poucos tokens.
 3. **Headroom Compressor:** Pipeline local de minificação por IA para remover dead-code e encurtar logs absurdos.
 4. **Codebase Memory MCP:** O Neo4j Graph. Proíbe a IA de dar "grep" para entender funções. Ela passa a consultar o Grafo (quem chama quem), gastando apenas os tokens necessários para ler a fatia exata do código.
+5. **TokTrim Memory MCP:** Um Micro-MCP nativo que provê **Memória Persistente**. Salva decisões de arquitetura e soluções de bugs usando um banco SQLite + FTS5, permitindo que a IA "lembre" do contexto em sessões futuras. Tudo isso em apenas um único arquivo Python, mantendo o ecossistema livre de monólitos burocráticos.
 
 ## 💻 Painel Interativo em C
 
@@ -42,8 +43,9 @@ O utilitário `toktrim` exibirá um menu limpo:
 - `[2]` Compilar e Instalar RTK (Rust)
 - `[3]` Provisionar Headroom Engine
 - `[4]` Provisionar Codebase-Memory-MCP
-- `[5]` Atualizar Regras do Agente (Google Antigravity & Claude Code)
-- `[6]` Instalar Tudo Automaticamente
+- `[5]` Provisionar TokTrim Memory MCP (SQLite FTS5)
+- `[6]` Atualizar Regras do Agente (Google Antigravity & Claude Code)
+- `[7]` Instalar Tudo Automaticamente
 
 ## 🤖 Compatibilidade
 

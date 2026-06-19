@@ -39,6 +39,12 @@ void install_codebase_mcp() {
     printf("[+] Codebase-Memory-MCP processado!\n\n");
 }
 
+void install_toktrim_memory() {
+    printf("[*] Provisionando TokTrim Memory MCP (SQLite + FTS5)...\n");
+    system("MCP_DIR=\"$HOME/.gemini/antigravity-cli/mcp\"; mkdir -p \"$MCP_DIR\"; if [ ! -d \"$MCP_DIR/toktrim-memory_env\" ]; then python3 -m venv \"$MCP_DIR/toktrim-memory_env\" && source \"$MCP_DIR/toktrim-memory_env/bin/activate\" && cp -r ./toktrim-memory /tmp/toktrim-memory && cd /tmp/toktrim-memory && pip install -r requirements.txt && cp server.py \"$MCP_DIR/toktrim-memory_env/\" && cd - > /dev/null && rm -rf /tmp/toktrim-memory; else echo 'TokTrim Memory MCP ja provisionado.'; fi");
+    printf("[+] TokTrim Memory MCP processado!\n\n");
+}
+
 void inject_rules() {
     printf("[*] Injetando regras globais de economia de tokens...\n");
     const char* bash_cmd = 
@@ -65,6 +71,7 @@ void install_all() {
     install_rtk();
     install_headroom();
     install_codebase_mcp();
+    install_toktrim_memory();
     inject_rules();
     printf("=========================================================\n");
     printf("   TODO O ECOSSISTEMA TOKTRIM FOI INSTALADO COM SUCESSO! \n");
@@ -80,8 +87,9 @@ int main() {
         printf("2. Compilar e Instalar RTK (Rust)\n");
         printf("3. Provisionar Headroom Engine\n");
         printf("4. Provisionar Codebase-Memory-MCP\n");
-        printf("5. Atualizar Regras do Agente (Antigravity & Claude)\n");
-        printf("6. Instalar Tudo Automaticamente\n");
+        printf("5. Provisionar TokTrim Memory MCP (SQLite FTS5)\n");
+        printf("6. Atualizar Regras do Agente (Antigravity & Claude)\n");
+        printf("7. Instalar Tudo Automaticamente\n");
         printf("0. Sair\n");
         printf("=========================================================\n");
         printf("> ");
@@ -96,8 +104,9 @@ int main() {
             case 2: install_rtk(); break;
             case 3: install_headroom(); break;
             case 4: install_codebase_mcp(); break;
-            case 5: inject_rules(); break;
-            case 6: install_all(); break;
+            case 5: install_toktrim_memory(); break;
+            case 6: inject_rules(); break;
+            case 7: install_all(); break;
             case 0: printf("Saindo do painel TokTrim...\n"); break;
             default: printf("Opcao invalida!\n"); break;
         }
