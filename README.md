@@ -1,25 +1,49 @@
-# 🚀 Antigravity Skill Economy (Hyperdrive)
+<div align="center">
+  <img src="https://via.placeholder.com/150/8A2BE2/FFFFFF?text=TokTrim" width="120" />
+  <h1>TokTrim</h1>
+  <p><b>Token Economy & Context Engineering Stack for AI Agents</b></p>
+</div>
 
-Este repositório contém o protocolo **Hyperdrive** e o ecossistema de otimização extrema de tokens para Agentes de IA autônomos baseados em arquitetura Antigravity.
+---
 
-O objetivo deste pacote é dotar o agente das ferramentas "Exodia", que forçam a IA a economizar 90% dos tokens durante o parsing de bases de código gigantes e de logs pesados.
+**TokTrim** é a suíte de ferramentas definitiva para otimizar o consumo de tokens e o "Context Window" de agentes de inteligência artificial (como Google Antigravity e Anthropic Claude Code). O TokTrim fornece uma camada de orquestração que evita que a IA leia arquivos desnecessários, comprima logs gigantescos e entenda repositórios complexos utilizando grafos de dependência.
 
-## 📦 O que está incluído?
+## 🚀 O que o TokTrim faz?
 
-1. **Repomap Economy Skill**: Ensina o Agente a usar a CLI do `repomix` para desenhar o AST da arquitetura antes de sair lendo os arquivos aleatoriamente.
-2. **Headroom Compressor Skill**: Ensina o Agente a invocar um minificador de AST/Logs para não jogar a janela de contexto no lixo.
-3. **RTK (Rust Token Killer)**: O Agente aprende a silenciar logs inúteis de CLIs (`npm`, `az`, `grep`).
-4. **Regras Globais de Contexto**: Impede que a IA aja por impulso sem ter perguntado pelo Blueprint.
+Em vez de permitir que a IA use um simples `grep` ou leia dezenas de arquivos, o TokTrim injeta um protocolo e um conjunto de ferramentas que forçam a IA a agir de maneira cirúrgica:
 
-## 🛠️ Como instalar em outro PC
+1. **RTK (Rust Token Killer):** Filtra ruídos em saídas de terminal. (Economiza 90% dos tokens de log)
+2. **Repomix:** Gera um mapa estrutural (AST) da arquitetura, sem precisar ler o conteúdo do código em si.
+3. **Headroom Compressor:** Minifica e comprime grandes saídas de texto ou códigos ofuscados usando IA-driven AST minification.
+4. **Codebase-Memory-MCP:** Um servidor MCP integrado em um Neo4j Graph para que o Agente busque apenas as funções e dependências cruzadas corretas.
 
-Para instalar essas skills no motor do Antigravity do seu outro computador, basta clonar este repositório e rodar o script instalador:
+## 💻 Compatibilidade Multi-Agente
+
+O TokTrim é compatível com os principais agentes do mercado:
+
+- **Google Antigravity:** Injeção global transparente via `AGENTS.md` e pastas nativas de `.gemini/config`.
+- **Claude Code (Anthropic):** Injeção local por projeto via criação do template `CLAUDE.md`.
+- **Cursor / Windsurf / Cline:** Plenamente suportado através das regras injetadas e do MCP Codebase Memory.
+
+## 🛠 Como Instalar
+
+O TokTrim oferece um dashboard Web de última geração para gerenciar suas skills e instalações!
 
 ```bash
-git clone https://github.com/refernandes/skill_economy_antigravity.git
-cd skill_economy_antigravity
-chmod +x install.sh
+# 1. Clone o repositório
+git clone https://github.com/refernandes/toktrim.git
+cd toktrim
+
+# 2. Abra a interface de Gerência (Web UI)
+cd dashboard
+npm install
+npm run dev
+```
+
+Você também pode instalar diretamente via CLI:
+```bash
 ./install.sh
 ```
 
-A mágica acontecerá automaticamente. Os diretórios da pasta `~/.gemini/config/skills/` do sistema host serão provisionados e o arquivo de System Instructions `AGENTS.md` será hackeado de forma cirúrgica para embarcar as regras do protocolo Hyperdrive na mente do modelo.
+---
+*TokTrim - Engenharia de Contexto Inteligente.*

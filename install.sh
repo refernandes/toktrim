@@ -1,7 +1,7 @@
 #!/bin/bash
-# install.sh - Antigravity Skill Economy Deployment
+# install.sh - TokTrim Deployment & Management
 
-echo "🚀 Iniciando a instalação do protocolo HYPERDRIVE (Token Economy)..."
+echo "🚀 Iniciando a instalação do TokTrim (Token Economy Stack)..."
 
 # 1. Configurando Diretórios
 GEMINI_DIR="$HOME/.gemini/config"
@@ -75,9 +75,9 @@ echo "✅ Skills copiadas para $SKILLS_DIR"
 # 3. Injetando a Regra Global
 AGENTS_FILE="$GEMINI_DIR/AGENTS.md"
 
-HYPERDRIVE_RULE="
-<RULE[user_global_hyperdrive]>
-# HYPERDRIVE: Master Protocol & Token Economy
+TOKTRIM_RULE="
+<RULE[user_global_toktrim]>
+# TOKTRIM: Context Engineering & Token Economy
 
 ## 1. Initial Engagement Protocol
 **ALWAYS start every new conversation or task by asking the user for context.**
@@ -87,7 +87,7 @@ Before executing code, writing files, or blindly guessing the architecture, you 
 Do not write code until the user provides the blueprint or confirms you can proceed.
 
 ## 2. The Exodia Token Economy Stack (Always Active)
-You are equipped with the ultimate Context Engineering stack. You MUST use these tools implicitly for all operations:
+You are equipped with the TokTrim engineering stack. You MUST use these tools implicitly for all operations:
 
 - **RTK (Rust Token Killer):** ALWAYS prefix CLI commands with \`rtk\` (e.g., \`rtk npm run build\`, \`rtk grep \"foo\"\`, \`rtk log\`). This filters noise and saves 90% of tokens.
 - **Repomix (RepoMap):** When entering a new project or searching for architecture, NEVER read random files. Run \`repomix --compress --no-files\` to generate a lightweight AST map of the repository, read it, and then target specific files.
@@ -95,18 +95,18 @@ You are equipped with the ultimate Context Engineering stack. You MUST use these
 - **Codebase-Memory-MCP:** Always use your \`codebase-memory-mcp\` tools (\`trace_path\`, \`search_graph\`) to understand side-effects and relations instead of relying on regex grep.
 
 Use this stack proactively to maintain Maximum Viable Context with minimal tokens.
-</RULE[user_global_hyperdrive]>
+</RULE[user_global_toktrim]>
 "
 
 if [ ! -f "$AGENTS_FILE" ]; then
     echo "📄 Criando AGENTS.md..."
-    echo "$HYPERDRIVE_RULE" > "$AGENTS_FILE"
+    echo "$TOKTRIM_RULE" > "$AGENTS_FILE"
 else
-    if grep -q "HYPERDRIVE: Master Protocol" "$AGENTS_FILE"; then
-        echo "⚠️ A regra HYPERDRIVE já existe em AGENTS.md. Pulando injeção."
+    if grep -q "TOKTRIM: Context Engineering" "$AGENTS_FILE"; then
+        echo "⚠️ A regra TOKTRIM já existe em AGENTS.md. Pulando injeção."
     else
-        echo "💉 Injetando regra HYPERDRIVE no AGENTS.md existente..."
-        echo "$HYPERDRIVE_RULE" >> "$AGENTS_FILE"
+        echo "💉 Injetando regra TOKTRIM no AGENTS.md existente..."
+        echo "$TOKTRIM_RULE" >> "$AGENTS_FILE"
     fi
 fi
 
@@ -116,9 +116,9 @@ CLAUDE_TEMPLATE_DIR="$GEMINI_DIR/templates"
 mkdir -p "$CLAUDE_TEMPLATE_DIR"
 CLAUDE_TEMPLATE_FILE="$CLAUDE_TEMPLATE_DIR/CLAUDE.md"
 
-echo "$HYPERDRIVE_RULE" > "$CLAUDE_TEMPLATE_FILE"
+echo "$TOKTRIM_RULE" > "$CLAUDE_TEMPLATE_FILE"
 
 echo "✅ O template universal para o Claude Code foi salvo em: $CLAUDE_TEMPLATE_FILE"
-echo "💡 DICA: Quando for iniciar um projeto novo no Claude Code, rode 'cp $CLAUDE_TEMPLATE_FILE ./CLAUDE.md' na raiz do projeto para ele herdar o protocolo Hyperdrive."
+echo "💡 DICA: Quando for iniciar um projeto novo no Claude Code, rode 'cp $CLAUDE_TEMPLATE_FILE ./CLAUDE.md' na raiz do projeto para ele herdar o protocolo TokTrim."
 
-echo "🎉 Instalação Concluída! Todo seu ecossistema (Antigravity & Claude Code) está pronto para operar em modo Hyperdrive Economy."
+echo "🎉 Instalação Concluída! Todo seu ecossistema (Antigravity & Claude Code) está pronto para operar em modo TokTrim Economy."
