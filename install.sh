@@ -6,10 +6,34 @@ echo "🚀 Iniciando a instalação do protocolo HYPERDRIVE (Token Economy)..."
 # 1. Configurando Diretórios
 GEMINI_DIR="$HOME/.gemini/config"
 SKILLS_DIR="$GEMINI_DIR/skills"
+MCP_DIR="$HOME/.gemini/antigravity-cli/mcp"
 
 mkdir -p "$SKILLS_DIR"
+mkdir -p "$MCP_DIR"
 
-# 2. Copiando as Skills
+# 2. Instalando Dependências CLI (Os Motores Reais)
+echo "⚙️  Instalando motores de compressão e CLIs reais..."
+
+# Repomix (Gerador de AST/Mapas)
+if ! command -v repomix &> /dev/null; then
+    echo "📦 Instalando repomix globalmente..."
+    npm install -g repomix
+else
+    echo "✔️  Repomix já instalado."
+fi
+
+# RTK e Headroom (Avisos de compilação)
+if ! command -v rtk &> /dev/null; then
+    echo "⚠️  RTK (Rust Token Killer) não encontrado no PATH."
+    echo "👉 Recomendação: Execute 'cargo install rtk' (ou clone o repositório original do RTK e faça o build)."
+fi
+
+if [ ! -f "$MCP_DIR/headroom_env/bin/headroom" ]; then
+    echo "⚠️  Headroom Compressor não encontrado no diretório do MCP."
+    echo "👉 Recomendação: Instale o ambiente virtual Python do Headroom em $MCP_DIR/headroom_env"
+fi
+
+# 3. Copiando as Skills (Instruções do Agente)
 echo "📦 Instalando Skills de Economia..."
 cp -r ./headroom-economy "$SKILLS_DIR/"
 cp -r ./repomap-economy "$SKILLS_DIR/"
