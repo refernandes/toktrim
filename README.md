@@ -15,7 +15,18 @@ Em vez de permitir que a IA use um simples `grep` ou leia dezenas de arquivos, o
 1. **RTK (Rust Token Killer):** Filtra ruídos em saídas de terminal. (Economiza 90% dos tokens de log)
 2. **Repomix:** Gera um mapa estrutural (AST) da arquitetura, sem precisar ler o conteúdo do código em si.
 3. **Headroom Compressor:** Minifica e comprime grandes saídas de texto ou códigos ofuscados usando IA-driven AST minification.
-4. **Codebase-Memory-MCP:** Um servidor MCP integrado em um Neo4j Graph para que o Agente busque apenas as funções e dependências cruzadas corretas.
+4. **Codebase Memory MCP:** O cérebro de grafos da operação. Impede a IA de fazer greps cegos.
+
+## 🧠 Deep Dive: Codebase Memory MCP
+A maior parte do desperdício de tokens ocorre quando a IA precisa entender **quem chama uma função e quais são seus efeitos colaterais**, forçando a leitura de dezenas de arquivos completos. O **TokTrim** provisiona o repositório oficial da DeusData (`codebase-memory-mcp`) para transformar o seu código num **Knowledge Graph Neo4j**.
+
+A partir do momento em que o TokTrim é ativado, a IA passa a contar com ferramentas cirúrgicas nativas (MCP Tools):
+- \`search_graph\`: Busca funções, classes, rotas ou variáveis por padrão regex sem abrir nenhum arquivo.
+- \`trace_path\`: Rastreia toda a árvore de quem chama e o que uma função chama (inbound/outbound), vital para debugar.
+- \`get_code_snippet\`: Lê exata e unicamente o bloco de código da função/classe solicitada, economizando 99% dos tokens de leitura de arquivo.
+- \`get_architecture\`: Retorna o resumo de alto nível da arquitetura.
+
+Ao proibir a IA de ler arquivos integrais e forçá-la a usar o Grafo, o TokTrim permite trabalhar em projetos *Enterprise* gigantescos com o custo e a performance de um script de 10 linhas.
 
 ## 💻 Compatibilidade Multi-Agente
 

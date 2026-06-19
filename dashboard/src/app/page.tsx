@@ -59,12 +59,13 @@ export default function Home() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 z-10"
+        className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 z-10"
       >
         {[
           { icon: <Zap className="text-yellow-400" />, title: "RTK & Repomix", desc: "Rust Token Killer CLI e geradores de Mapas AST nativos." },
-          { icon: <Cpu className="text-blue-400" />, title: "Headroom Engine", desc: "Servidor local de compressão neural via Neo4j Graph MCP." },
-          { icon: <ShieldCheck className="text-emerald-400" />, title: "Multi-Agent Auth", desc: "Regras plug-and-play para Google Antigravity e Claude Code." }
+          { icon: <Cpu className="text-blue-400" />, title: "Headroom Engine", desc: "Compressão neural de logs complexos em tempo real." },
+          { icon: <ShieldCheck className="text-emerald-400" />, title: "Multi-Agent Auth", desc: "Regras plug-and-play para Google Antigravity e Claude Code." },
+          { icon: <Terminal className="text-purple-400" />, title: "Codebase Graph", desc: "Servidor Neo4j MCP Tools para rastrear dependências sem ler os arquivos." }
         ].map((feature, i) => (
           <div key={i} className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 p-8 rounded-3xl hover:bg-slate-800/50 hover:border-purple-500/30 transition-all duration-300">
             <div className="p-3 bg-slate-800 rounded-xl w-fit mb-6">
