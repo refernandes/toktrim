@@ -110,4 +110,15 @@ else
     fi
 fi
 
-echo "🎉 Instalação Concluída! O seu Agente agora está rodando no modo Hyperdrive Economy."
+# 4. Suporte para Claude Code (Anthropic)
+echo "🤖 Configurando suporte nativo para o Claude Code..."
+CLAUDE_TEMPLATE_DIR="$GEMINI_DIR/templates"
+mkdir -p "$CLAUDE_TEMPLATE_DIR"
+CLAUDE_TEMPLATE_FILE="$CLAUDE_TEMPLATE_DIR/CLAUDE.md"
+
+echo "$HYPERDRIVE_RULE" > "$CLAUDE_TEMPLATE_FILE"
+
+echo "✅ O template universal para o Claude Code foi salvo em: $CLAUDE_TEMPLATE_FILE"
+echo "💡 DICA: Quando for iniciar um projeto novo no Claude Code, rode 'cp $CLAUDE_TEMPLATE_FILE ./CLAUDE.md' na raiz do projeto para ele herdar o protocolo Hyperdrive."
+
+echo "🎉 Instalação Concluída! Todo seu ecossistema (Antigravity & Claude Code) está pronto para operar em modo Hyperdrive Economy."
