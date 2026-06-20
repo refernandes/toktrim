@@ -1,0 +1,16 @@
+[project]
+name = "meu-super-repo"
+
+[budget]
+max_tokens_per_task = 40000
+
+[providers.repomix]
+enabled = true
+compress = true
+
+[providers.headroom]
+enabled = false
+
+[policy]
+preset = "cheap-repo"
+

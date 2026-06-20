@@ -1,17 +1,22 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Werror -O2 -fsanitize=address,undefined -g
-TARGET = toktrim
-SRC = toktrim.c
+CFLAGS = -Wall -Wextra -Iinclude -g
 
-all: $(TARGET)
+SRC_DIR = src
+OBJ_DIR = obj
+BIN = toktrim
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
+SRCS = $(wildcard $(SRC_DIR)/*.c) \
+       $(wildcard $(SRC_DIR)/*/*.c)
+OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
+
+$(BIN): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(TARGET)
-	rm -rf *.dSYM
+	rm -rf $(OBJ_DIR) $(BIN)
 
-re: clean all
-
-.PHONY: all clean re
+.PHONY: clean
