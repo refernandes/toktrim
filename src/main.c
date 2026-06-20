@@ -25,17 +25,21 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    toktrim_config_t cfg;
+    load_default_config(&cfg);
+    parse_local_config(".toktrim/config.toml", &cfg);
+
     switch (ctx.cmd) {
         case CMD_DOCTOR:
             return run_doctor();
         case CMD_INSTALL:
             return run_install(ctx.target);
         case CMD_STATUS:
-            return run_status();
+            return run_status(&cfg);
         case CMD_ESTIMATE:
-            return run_estimate(ctx.type, ctx.input, ctx.json_output);
+            return run_estimate(ctx.type, ctx.input, ctx.json_output, &cfg);
         case CMD_OPTIMIZE:
-            return run_optimize(ctx.type, ctx.input, ctx.json_output);
+            return run_optimize(ctx.type, ctx.input, ctx.json_output, &cfg);
         default:
             print_help();
             return 1;

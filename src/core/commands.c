@@ -51,27 +51,28 @@ int run_install(const char* target) {
     return 0;
 }
 
-int run_status() {
-    printf("%s[INFO]%s TokTrim Status:\n", C_CYAN, C_RESET);
-    printf("  Config: .toktrim/config.toml (Not found - Defaults applied)\n");
+int run_status(toktrim_config_t* cfg) {
+    printf("%s[INFO]%s TokTrim Status for Project: %s\n", C_CYAN, C_RESET, cfg->name);
+    printf("  Policy Preset: %s\n", cfg->policy_preset);
+    printf("  Max Tokens: %d\n", cfg->max_tokens);
     printf("  Providers:\n");
-    printf("    repomix: %senabled%s\n", C_GREEN, C_RESET);
-    printf("    headroom: %senabled%s\n", C_GREEN, C_RESET);
+    printf("    repomix: %s\n", cfg->repomix.enabled ? C_GREEN "enabled" C_RESET : C_RED "disabled" C_RESET);
+    printf("    headroom: %s\n", cfg->headroom.enabled ? C_GREEN "enabled" C_RESET : C_RED "disabled" C_RESET);
     return 0;
 }
 
-int run_estimate(const char* type, const char* input, int json_out) {
+int run_estimate(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
     long long baseline = get_approximate_tokens(input);
     if (baseline == 0) baseline = 50000; // Fallback se o path não existir
 
-    // Estimativa de ganho: repomix economiza ~70% (compress/no-files), headroom ~60%
+    // Estimativa de ganho considerando política
     double savings_rate = 0.0;
     const char* provider = "Unknown";
     
-    if (strcmp(type, "repo") == 0) {
+    if (strcmp(type, "repo") == 0 && cfg->repomix.enabled) {
         savings_rate = 0.70;
         provider = "repomix";
-    } else if (strcmp(type, "logs") == 0) {
+    } else if (strcmp(type, "logs") == 0 && cfg->headroom.enabled) {
         savings_rate = 0.60;
         provider = "headroom";
     } else {
@@ -104,7 +105,8 @@ int run_estimate(const char* type, const char* input, int json_out) {
     return 0;
 }
 
-int run_optimize(const char* type, const char* input, int json_out) {
+int run_optimize(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
+    (void)cfg;
     if (json_out) {
         printf("{\n  \"status\": \"optimized\",\n  \"type\": \"%s\",\n  \"input\": \"%s\",\n  \"optimized_tokens\": 15000\n}\n", type, input);
     } else {
