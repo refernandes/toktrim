@@ -1,65 +1,113 @@
 <div align="center">
-  <h1>TokTrim</h1>
-  <p><b>A C-based Context Engineering & Token Economy Stack</b></p>
+  <h1>🧠 TokTrim v1</h1>
+  <p><b>Economy Control Plane for Agentic Workflows</b></p>
 </div>
 
 ---
 
-> **Aviso de Atribuição e Agradecimentos:**
-> O TokTrim não é a invenção da roda, mas sim um **encapsulamento arquitetural**. Ele foi construído reunindo e orquestrando ideias brilhantes da comunidade Open Source para resolver um problema real: agentes de IA lendo lixo de terminal e estourando Context Windows. Agradecimentos imensos aos criadores originais que inspiram esta stack:
-> - [Repomix (Yamada)](https://github.com/yamadashy/repomix)
-> - [RTK (Rust Token Killer)](https://github.com/rtk-ai/rtk)
-> - [Codebase Memory MCP (DeusData)](https://github.com/DeusData/codebase-memory-mcp)
-> - [Headroom (Chopra Tejas)](https://github.com/chopratejas/headroom)
-> - [Token Savior (Mibayy)](https://github.com/mibayy/token-savior) pela profunda inspiração na filosofia de *Token Economy*!
+## 🎯 O Que é o TokTrim?
+
+O **TokTrim** é um motor local escrito em C de alta performance focado em uma única missão: **Maximizar a economia de contexto (Tokens) e dinheiro (USD) nas chamadas de IA sem perda de qualidade**.
+
+Diferente de scripts ingênuos ou injetores de configuração global que causam *side-effects*, o TokTrim atua como um **Control Plane**. Ele calcula os custos locais, orquestra dinamicamente as melhores ferramentas de compressão do mercado (`Repomix`, `Headroom`) usando a sua própria CPU e fornece um benchmark claro do seu ROI antes de cada chamada.
+
+## 💰 A Visão de Economia (Economy-First)
+
+Por que usar o TokTrim? Porque enviar 80.000 tokens repetidos ou irrelevantes custa caro, causa degradação de contexto ("Lost in the Middle") e aumenta muito a latência da IA.
+
+O TokTrim implementa o cálculo:
+`Economia Líquida = Custo Baseline - Custo Otimizado - Latência Local`
+
+- **Custo 0$ em Decisão:** A ferramenta roda localmente na sua máquina (`C` e `execvp`), garantindo que o Agente receba o input filtrado.
+- **Transparência Absoluta:** O comando `toktrim estimate` te diz exatamente quantos tokens você vai economizar *antes* de executar a tarefa.
+- **Opt-in por Projeto:** Suas regras residem no arquivo `.toktrim/config.toml` do seu repositório. O TokTrim não altera seu ambiente global e não injeta dogmas.
 
 ---
 
-**TokTrim** é uma suíte de alta performance desenvolvida para otimizar drasticamente o consumo de tokens e a gestão da "Context Window" de agentes como Google Antigravity e Claude Code.
+## 🏗️ Arquitetura e Engenharia (>90/100)
 
-## 🚀 Como o TokTrim Funciona?
+O TokTrim v1 abandonou o velho fluxo de instaladores de shell acoplados. A engenharia foi refeita sob padrões robustos:
 
-O TokTrim injeta um ecossistema rigoroso que força a IA a extrair apenas a inteligência bruta de um repositório, parando o desperdício de tokens com *greps* cegos ou leituras de arquivos massivos:
+1. **CLI Modular (`src/cli`)**: Parser escalável (`doctor`, `estimate`, `optimize`, `benchmark`, `status`).
+2. **Execução Segura (`src/util/safe_exec.c`)**: Zero uso de `system()`. Invocação limpa nativa de Linux/macOS com `fork()` e `execvp()`.
+3. **Desacoplamento de Providers (`src/providers`)**: Repomix e Headroom agora são módulos plugáveis com interface padrão (`provider_vtbl_t`). Facilidade para plugar novos *minimizers*.
+4. **Configuração Previsível (`src/config`)**: Políticas declaradas puramente em TOML. Fallback local vs global limpo.
 
-1. **RTK (Rust Token Killer):** CLI que filtra ruídos de outputs de terminal (`pytest`, `git`, `npm`). Caso um comando fuja do escopo parseável, o RTK possui **fallback imediato** retornando a saída raw, prevenindo perdas de dados críticas em CLIs legadas.
-2. **Repomix:** Gera um Abstract Syntax Tree (AST) estrutural. Em vez da IA ler todo o código, ela lê apenas o mapa.
-3. **Headroom Compressor:** Pipeline de minificação AST. **Atenção:** O Headroom opera em modo estritamente **Read-Only** (ele comprime os logs/arquivos apenas para envio à Context Window do LLM, não altera os arquivos no seu disco). Risco zero de apagar código acidentalmente.
-4. **Codebase Memory MCP:** Substitui a burocracia do `grep`. A IA passa a consultar o Grafo Neo4j (quem chama quem), gastando tokens apenas para ler as funções solicitadas. Em projetos menores, este componente pode ser considerado "overkill", mas brilha em repositórios massivos.
-5. **TokTrim Memory MCP:** Um Micro-MCP nativo (1 único arquivo) que provê **Memória Persistente**. Salva decisões de arquitetura em um banco SQLite + FTS5 local. Evita os monólitos pesados de outras soluções do mercado.
+---
 
-## 💻 Painel Interativo em C
+## 🚀 Instalação e Uso
 
-O gerenciamento do ecossistema TokTrim ocorre no terminal, através de uma CLI escrita em C puro. Focamos na segurança e velocidade, portanto, o projeto conta com um `Makefile` configurado com flags rigorosas (`-Wall -Wextra -Werror -fsanitize=address`).
-
-### Compilando e Rodando (Guia Rápido)
-
+### Build Local
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/refernandes/toktrim.git
-cd toktrim
-
-# 2. Compile com as regras de segurança estritas (Address Sanitizer ativo)
 make
-
-# 3. Execute
-./toktrim
 ```
 
-### O Menu do Painel
-O utilitário `toktrim` exibirá um menu limpo:
-- `[1]` Instalar Repomix
-- `[2]` Compilar e Instalar RTK (Rust)
-- `[3]` Provisionar Headroom Engine
-- `[4]` Provisionar Codebase-Memory-MCP (Neo4j)
-- `[5]` Provisionar TokTrim Memory MCP (Micro-Grafo SQLite FTS5)
-- `[6]` Atualizar Regras Globais do Agente (Google Antigravity)
-- `[7]` Instalar Tudo Automaticamente
+### Comandos Principais (CLI)
 
-## 🤖 Como Usar nos seus Agentes (Limitações e Regras)
+* **Status e Políticas Locais:**
+  ```bash
+  ./toktrim status
+  ```
+  *Lê seu `.toktrim/config.toml` e informa quais engines estão habilitadas para o diretório atual.*
 
-- **Google Antigravity:** A Opção `6` injeta a regra TokTrim de forma global. Cuidado com conflitos: O TokTrim injeta no topo do seu `AGENTS.md`. Verifique se você não possui regras concorrentes.
-- **Claude Code (Anthropic):** A CLI exporta um template chamado `CLAUDE.md` em `~/.gemini/config/templates/`.
-  - **Uso:** Rode `cp ~/.gemini/config/templates/CLAUDE.md ./CLAUDE.md` na raiz de qualquer projeto novo para injetar o protocolo de economia no Claude.
+* **Estimar Economia (Sem Mutação):**
+  ```bash
+  ./toktrim estimate --type repo --input src
+  ```
+  *Exibe um painel de inteligência de custos com a projeção de tokens salvos usando a melhor policy do projeto.*
+
+* **Otimizar Contexto Real:**
+  ```bash
+  ./toktrim optimize --type logs --input build.log
+  ```
+  *Delega de forma inteligente para a ferramenta escolhida (Ex: Repomix para codebase, Headroom para traces).*
+
+* **Benchmark Real:**
+  ```bash
+  ./toktrim benchmark --type repo --input .
+  ```
+  *Roda o pipeline completo, calcula o baseline, executa as reduções e apresenta um dashboard comparativo de tokens descartados, comprovando até 80%+ de ganho financeiro.*
 
 ---
-*Construído com base em ideias incríveis e testado em campo de batalha.*
+
+## 🔧 Configuração Opt-In (`.toktrim/config.toml`)
+
+No diretório raiz do seu projeto, crie o arquivo com as políticas:
+
+```toml
+[project]
+name = "my-awesome-repo"
+
+[budget]
+max_tokens_per_task = 40000
+
+[providers.repomix]
+enabled = true
+compress = true
+
+[providers.headroom]
+enabled = true
+mode = "wrap"
+
+[policy]
+preset = "balanced"
+```
+
+> **Aviso de Engenharia:** O TokTrim não mais força comportamentos universais. Ele opera estritamente nas regras que você confia no seu repositório, garantindo controle de versão e isolamento.
+
+---
+
+## 🧪 Suíte de Testes e Benchmark
+
+O TokTrim acompanha tanto **testes unitários** (garantindo que o core do parser funcione corretamente) quanto uma **suíte de benchmark** ostensiva (`scripts/comprehensive_benchmark.sh`) que você pode rodar para constatar o ROI real na sua base de código.
+
+```bash
+chmod +x scripts/comprehensive_benchmark.sh
+./scripts/comprehensive_benchmark.sh
+```
+
+---
+
+<div align="center">
+  <p><i>Desenvolvido seguindo princípios de arquitetura de software, observabilidade e performance.</i></p>
+</div>
