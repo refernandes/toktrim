@@ -18,6 +18,8 @@ int parse_args(int argc, char** argv, cli_context_t* ctx) {
         ctx->cmd = CMD_ESTIMATE;
     } else if (strcmp(argv[1], "optimize") == 0) {
         ctx->cmd = CMD_OPTIMIZE;
+    } else if (strcmp(argv[1], "benchmark") == 0) {
+        ctx->cmd = CMD_BENCHMARK;
     } else {
         return -1;
     }
@@ -33,8 +35,8 @@ int parse_args(int argc, char** argv, cli_context_t* ctx) {
         }
     }
 
-    if ((ctx->cmd == CMD_ESTIMATE || ctx->cmd == CMD_OPTIMIZE) && (!ctx->type || !ctx->input)) {
-        log_error("Erro: Comandos estimate e optimize requerem --type e --input\n");
+    if ((ctx->cmd == CMD_ESTIMATE || ctx->cmd == CMD_OPTIMIZE || ctx->cmd == CMD_BENCHMARK) && (!ctx->type || !ctx->input)) {
+        log_error("Erro: Comandos estimate, optimize e benchmark requerem --type e --input\n");
         return -1;
     }
 

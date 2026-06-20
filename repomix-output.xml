@@ -78,10 +78,13 @@ src/
     logger.c
     safe_exec.c
   main.c
+tests/
+  test_cli.c
 toktrim-memory/
   requirements.txt
   server.py
 Makefile
 README.md
+test_cli
 toktrim
 </directory_structure>

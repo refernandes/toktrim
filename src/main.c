@@ -40,6 +40,8 @@ int main(int argc, char** argv) {
             return run_estimate(ctx.type, ctx.input, ctx.json_output, &cfg);
         case CMD_OPTIMIZE:
             return run_optimize(ctx.type, ctx.input, ctx.json_output, &cfg);
+        case CMD_BENCHMARK:
+            return run_benchmark(ctx.type, ctx.input, &cfg);
         default:
             print_help();
             return 1;

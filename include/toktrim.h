@@ -15,7 +15,8 @@ typedef enum {
     CMD_ESTIMATE,
     CMD_OPTIMIZE,
     CMD_PACK,
-    CMD_COMPRESS
+    CMD_COMPRESS,
+    CMD_BENCHMARK
 } command_t;
 
 // Contexto do comando
@@ -75,5 +76,6 @@ int run_install(const char* target);
 int run_status(toktrim_config_t* cfg);
 int run_estimate(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
 int run_optimize(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
+int run_benchmark(const char* type, const char* input, toktrim_config_t* cfg);
 
 #endif // TOKTRIM_H
