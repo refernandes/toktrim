@@ -5,33 +5,41 @@
 
 ---
 
-**TokTrim** é uma suíte de alta performance (gerenciada nativamente via C CLI) desenvolvida para otimizar drasticamente o consumo de tokens e a gestão da "Context Window" de agentes de inteligência artificial (como Google Antigravity e Anthropic Claude Code).
+> **Aviso de Atribuição e Agradecimentos:**
+> O TokTrim não é a invenção da roda, mas sim um **encapsulamento arquitetural**. Ele foi construído reunindo e orquestrando ideias brilhantes da comunidade Open Source para resolver um problema real: agentes de IA lendo lixo de terminal e estourando Context Windows. Agradecimentos imensos aos criadores originais que inspiram esta stack:
+> - [Repomix (Yamada)](https://github.com/yamadashy/repomix)
+> - [RTK (Rust Token Killer)](https://github.com/rtk-ai/rtk)
+> - [Codebase Memory MCP (DeusData)](https://github.com/DeusData/codebase-memory-mcp)
+> - [Headroom (Chopra Tejas)](https://github.com/chopratejas/headroom)
+> - [Token Savior (Mibayy)](https://github.com/mibayy/token-savior) pela profunda inspiração na filosofia de *Token Economy*!
 
-## 🚀 Por que TokTrim?
+---
 
-Em vez de permitir que a IA leia dezenas de arquivos inteiros ou rode comandos lentos e ruidosos no shell, o TokTrim injeta um ecossistema rigoroso que força a IA a extrair apenas a inteligência bruta:
+**TokTrim** é uma suíte de alta performance desenvolvida para otimizar drasticamente o consumo de tokens e a gestão da "Context Window" de agentes como Google Antigravity e Claude Code.
 
-1. **RTK (Rust Token Killer):** CLI em Rust que filtra ruídos e formatações longas de outputs de terminal.
-2. **Repomix:** Gera um Abstract Syntax Tree (AST) e mapa estrutural da arquitetura do repositório em poucos tokens.
-3. **Headroom Compressor:** Pipeline local de minificação por IA para remover dead-code e encurtar logs absurdos.
-4. **Codebase Memory MCP:** O Neo4j Graph. Proíbe a IA de dar "grep" para entender funções. Ela passa a consultar o Grafo (quem chama quem), gastando apenas os tokens necessários para ler a fatia exata do código.
-5. **TokTrim Memory MCP:** Um Micro-MCP nativo que provê **Memória Persistente**. Salva decisões de arquitetura e soluções de bugs usando um banco SQLite + FTS5, permitindo que a IA "lembre" do contexto em sessões futuras. Tudo isso em apenas um único arquivo Python, mantendo o ecossistema livre de monólitos burocráticos.
+## 🚀 Como o TokTrim Funciona?
+
+O TokTrim injeta um ecossistema rigoroso que força a IA a extrair apenas a inteligência bruta de um repositório, parando o desperdício de tokens com *greps* cegos ou leituras de arquivos massivos:
+
+1. **RTK (Rust Token Killer):** CLI que filtra ruídos de outputs de terminal (`pytest`, `git`, `npm`). Caso um comando fuja do escopo parseável, o RTK possui **fallback imediato** retornando a saída raw, prevenindo perdas de dados críticas em CLIs legadas.
+2. **Repomix:** Gera um Abstract Syntax Tree (AST) estrutural. Em vez da IA ler todo o código, ela lê apenas o mapa.
+3. **Headroom Compressor:** Pipeline de minificação AST. **Atenção:** O Headroom opera em modo estritamente **Read-Only** (ele comprime os logs/arquivos apenas para envio à Context Window do LLM, não altera os arquivos no seu disco). Risco zero de apagar código acidentalmente.
+4. **Codebase Memory MCP:** Substitui a burocracia do `grep`. A IA passa a consultar o Grafo Neo4j (quem chama quem), gastando tokens apenas para ler as funções solicitadas. Em projetos menores, este componente pode ser considerado "overkill", mas brilha em repositórios massivos.
+5. **TokTrim Memory MCP:** Um Micro-MCP nativo (1 único arquivo) que provê **Memória Persistente**. Salva decisões de arquitetura em um banco SQLite + FTS5 local. Evita os monólitos pesados de outras soluções do mercado.
 
 ## 💻 Painel Interativo em C
 
-Esqueça dashboards web lentos e burocráticos. O gerenciamento de todo o ecossistema TokTrim, desde o provisionamento dos servidores MCP até a compilação do Rust, ocorre diretamente no terminal através de uma CLI veloz escrita em C puro.
+O gerenciamento do ecossistema TokTrim ocorre no terminal, através de uma CLI escrita em C puro. Focamos na segurança e velocidade, portanto, o projeto conta com um `Makefile` configurado com flags rigorosas (`-Wall -Wextra -Werror -fsanitize=address`).
 
-### Compilando e Rodando
-
-Para iniciar o seu painel de instalação e gerência:
+### Compilando e Rodando (Guia Rápido)
 
 ```bash
 # 1. Clone o repositório
 git clone https://github.com/refernandes/toktrim.git
 cd toktrim
 
-# 2. Compile o Painel
-gcc toktrim.c -o toktrim
+# 2. Compile com as regras de segurança estritas (Address Sanitizer ativo)
+make
 
 # 3. Execute
 ./toktrim
@@ -42,15 +50,16 @@ O utilitário `toktrim` exibirá um menu limpo:
 - `[1]` Instalar Repomix
 - `[2]` Compilar e Instalar RTK (Rust)
 - `[3]` Provisionar Headroom Engine
-- `[4]` Provisionar Codebase-Memory-MCP
-- `[5]` Provisionar TokTrim Memory MCP (SQLite FTS5)
-- `[6]` Atualizar Regras do Agente (Google Antigravity & Claude Code)
+- `[4]` Provisionar Codebase-Memory-MCP (Neo4j)
+- `[5]` Provisionar TokTrim Memory MCP (Micro-Grafo SQLite FTS5)
+- `[6]` Atualizar Regras Globais do Agente (Google Antigravity)
 - `[7]` Instalar Tudo Automaticamente
 
-## 🤖 Compatibilidade
+## 🤖 Como Usar nos seus Agentes (Limitações e Regras)
 
-- **Google Antigravity:** A Opção `5` da CLI automaticamente encontra a sua pasta oculta `.gemini/config/AGENTS.md` e injeta a regra TokTrim de forma global.
-- **Claude Code (Anthropic):** A CLI também exporta um template pronto chamado `CLAUDE.md` em `~/.gemini/config/templates/`. Basta rodar `cp ~/.gemini/config/templates/CLAUDE.md ./CLAUDE.md` na raiz de qualquer projeto seu para que o Claude herde todo o protocolo de economia.
+- **Google Antigravity:** A Opção `6` injeta a regra TokTrim de forma global. Cuidado com conflitos: O TokTrim injeta no topo do seu `AGENTS.md`. Verifique se você não possui regras concorrentes.
+- **Claude Code (Anthropic):** A CLI exporta um template chamado `CLAUDE.md` em `~/.gemini/config/templates/`.
+  - **Uso:** Rode `cp ~/.gemini/config/templates/CLAUDE.md ./CLAUDE.md` na raiz de qualquer projeto novo para injetar o protocolo de economia no Claude.
 
 ---
-*Escrito em C. Construído para IAs de Alta Fidelidade.*
+*Construído com base em ideias incríveis e testado em campo de batalha.*

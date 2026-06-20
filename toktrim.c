@@ -15,33 +15,40 @@ void print_header() {
     printf("=========================================================\n\n");
 }
 
+void safe_system(const char *cmd) {
+    int ret = system(cmd);
+    if (ret != 0) {
+        printf("[!] Aviso: O comando retornou um codigo de erro ou nao pode ser executado perfeitamente.\n");
+    }
+}
+
 void install_repomix() {
     printf("[*] Instalando Repomix (NPM Global)...\n");
-    system("npm install -g repomix");
+    safe_system("npm install -g repomix");
     printf("[+] Repomix instalado com sucesso!\n\n");
 }
 
 void install_rtk() {
     printf("[*] Compilando RTK (Rust Token Killer)...\n");
-    system("if ! command -v rtk &> /dev/null; then git clone https://github.com/refernandes/rtk.git /tmp/rtk && cd /tmp/rtk && cargo build --release && mkdir -p ~/.cargo/bin && cp target/release/rtk ~/.cargo/bin/ && cd - > /dev/null && rm -rf /tmp/rtk; else echo 'RTK ja instalado.'; fi");
+    safe_system("if ! command -v rtk &> /dev/null; then git clone https://github.com/rtk-ai/rtk.git /tmp/rtk && cd /tmp/rtk && cargo build --release && mkdir -p ~/.cargo/bin && cp target/release/rtk ~/.cargo/bin/ && cd - > /dev/null && rm -rf /tmp/rtk; else echo 'RTK ja instalado.'; fi");
     printf("[+] RTK processado!\n\n");
 }
 
 void install_headroom() {
     printf("[*] Provisionando Headroom Engine...\n");
-    system("MCP_DIR=\"$HOME/.gemini/antigravity-cli/mcp\"; mkdir -p \"$MCP_DIR\"; if [ ! -d \"$MCP_DIR/headroom_env\" ]; then git clone https://github.com/DeusData/headroom.git /tmp/headroom && python3 -m venv \"$MCP_DIR/headroom_env\" && source \"$MCP_DIR/headroom_env/bin/activate\" && cd /tmp/headroom && pip install -r requirements.txt || pip install . && cd - > /dev/null && rm -rf /tmp/headroom; else echo 'Headroom ja provisionado.'; fi");
+    safe_system("MCP_DIR=\"$HOME/.gemini/antigravity-cli/mcp\"; mkdir -p \"$MCP_DIR\"; if [ ! -d \"$MCP_DIR/headroom_env\" ]; then git clone https://github.com/chopratejas/headroom.git /tmp/headroom && python3 -m venv \"$MCP_DIR/headroom_env\" && source \"$MCP_DIR/headroom_env/bin/activate\" && cd /tmp/headroom && pip install -r requirements.txt || pip install . && cd - > /dev/null && rm -rf /tmp/headroom; else echo 'Headroom ja provisionado.'; fi");
     printf("[+] Headroom processado!\n\n");
 }
 
 void install_codebase_mcp() {
     printf("[*] Provisionando Codebase-Memory-MCP...\n");
-    system("MCP_DIR=\"$HOME/.gemini/antigravity-cli/mcp\"; mkdir -p \"$MCP_DIR\"; if [ ! -d \"$MCP_DIR/codebase-memory-mcp\" ]; then git clone https://github.com/DeusData/codebase-memory-mcp.git \"$MCP_DIR/codebase-memory-mcp\" && cd \"$MCP_DIR/codebase-memory-mcp\" && npm install && npm run build && cd - > /dev/null; else echo 'Codebase Memory MCP ja provisionado.'; fi");
+    safe_system("MCP_DIR=\"$HOME/.gemini/antigravity-cli/mcp\"; mkdir -p \"$MCP_DIR\"; if [ ! -d \"$MCP_DIR/codebase-memory-mcp\" ]; then git clone https://github.com/DeusData/codebase-memory-mcp.git \"$MCP_DIR/codebase-memory-mcp\" && cd \"$MCP_DIR/codebase-memory-mcp\" && npm install && npm run build && cd - > /dev/null; else echo 'Codebase Memory MCP ja provisionado.'; fi");
     printf("[+] Codebase-Memory-MCP processado!\n\n");
 }
 
 void install_toktrim_memory() {
     printf("[*] Provisionando TokTrim Memory MCP (SQLite + FTS5)...\n");
-    system("MCP_DIR=\"$HOME/.gemini/antigravity-cli/mcp\"; mkdir -p \"$MCP_DIR\"; if [ ! -d \"$MCP_DIR/toktrim-memory_env\" ]; then python3 -m venv \"$MCP_DIR/toktrim-memory_env\" && source \"$MCP_DIR/toktrim-memory_env/bin/activate\" && cp -r ./toktrim-memory /tmp/toktrim-memory && cd /tmp/toktrim-memory && pip install -r requirements.txt && cp server.py \"$MCP_DIR/toktrim-memory_env/\" && cd - > /dev/null && rm -rf /tmp/toktrim-memory; else echo 'TokTrim Memory MCP ja provisionado.'; fi");
+    safe_system("MCP_DIR=\"$HOME/.gemini/antigravity-cli/mcp\"; mkdir -p \"$MCP_DIR\"; if [ ! -d \"$MCP_DIR/toktrim-memory_env\" ]; then python3 -m venv \"$MCP_DIR/toktrim-memory_env\" && source \"$MCP_DIR/toktrim-memory_env/bin/activate\" && cp -r ./toktrim-memory /tmp/toktrim-memory && cd /tmp/toktrim-memory && pip install -r requirements.txt && cp server.py \"$MCP_DIR/toktrim-memory_env/\" && cd - > /dev/null && rm -rf /tmp/toktrim-memory; else echo 'TokTrim Memory MCP ja provisionado.'; fi");
     printf("[+] TokTrim Memory MCP processado!\n\n");
 }
 
@@ -62,7 +69,7 @@ void inject_rules() {
     "if [ ! -f \"$AGENTS_FILE\" ]; then echo -e \"$RULE\" > \"$AGENTS_FILE\"; else if ! grep -q 'TOKTRIM' \"$AGENTS_FILE\"; then echo -e \"$RULE\" >> \"$AGENTS_FILE\"; fi; fi; "
     "CLAUDE_DIR=\"$GEMINI_DIR/templates\"; mkdir -p \"$CLAUDE_DIR\"; echo -e \"$RULE\" > \"$CLAUDE_DIR/CLAUDE.md\";";
 
-    system(bash_cmd);
+    safe_system(bash_cmd);
     printf("[+] Regras injetadas no AGENTS.md e template CLAUDE.md gerado!\n\n");
 }
 
