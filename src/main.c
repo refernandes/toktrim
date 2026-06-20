@@ -14,9 +14,12 @@ void print_help() {
 }
 
 int main(int argc, char** argv) {
+    toktrim_config_t cfg;
+    load_default_config(&cfg);
+    parse_local_config(".toktrim/config.toml", &cfg);
+
     if (argc < 2) {
-        print_help();
-        return 1;
+        return run_interactive(&cfg);
     }
 
     cli_context_t ctx;
@@ -24,10 +27,6 @@ int main(int argc, char** argv) {
         print_help();
         return 1;
     }
-
-    toktrim_config_t cfg;
-    load_default_config(&cfg);
-    parse_local_config(".toktrim/config.toml", &cfg);
 
     switch (ctx.cmd) {
         case CMD_DOCTOR:

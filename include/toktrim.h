@@ -78,4 +78,7 @@ int run_estimate(const char* type, const char* input, int json_out, toktrim_conf
 int run_optimize(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
 int run_benchmark(const char* type, const char* input, toktrim_config_t* cfg);
 
+// cli
+int run_interactive(toktrim_config_t* cfg);
+
 #endif // TOKTRIM_H
