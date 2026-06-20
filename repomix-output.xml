@@ -42,15 +42,46 @@ The content is organized as follows:
 </file_summary>
 
 <directory_structure>
+.toktrim/
+  config.toml
 headroom-economy/
   SKILL.md
+include/
+  toktrim.h
+obj/
+  cli/
+    parser.o
+  config/
+    config.o
+  core/
+    commands.o
+  providers/
+    headroom.o
+    repomix.o
+  util/
+    logger.o
+    safe_exec.o
+  main.o
 repomap-economy/
   SKILL.md
+src/
+  cli/
+    parser.c
+  config/
+    config.c
+  core/
+    commands.c
+  providers/
+    headroom.c
+    repomix.c
+  util/
+    logger.c
+    safe_exec.c
+  main.c
 toktrim-memory/
   requirements.txt
   server.py
 Makefile
 README.md
 toktrim
-toktrim.c
 </directory_structure>

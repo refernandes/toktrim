@@ -106,19 +106,50 @@ int run_estimate(const char* type, const char* input, int json_out, toktrim_conf
 }
 
 int run_optimize(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
-    (void)cfg;
     if (json_out) {
-        printf("{\n  \"status\": \"optimized\",\n  \"type\": \"%s\",\n  \"input\": \"%s\",\n  \"optimized_tokens\": 15000\n}\n", type, input);
+        printf("{\n  \"status\": \"optimizing\",\n  \"type\": \"%s\",\n  \"input\": \"%s\"\n}\n", type, input);
     } else {
         printf("\n");
         printf("  %s╭────────────────────────────────────────────────────────╮%s\n", C_GREEN, C_RESET);
         printf("  %s│%s                 %sTOKTRIM OPTIMIZATION%s                  %s│%s\n", C_GREEN, C_RESET, C_BOLD, C_RESET, C_GREEN, C_RESET);
         printf("  %s├────────────────────────────────────────────────────────┤%s\n", C_GREEN, C_RESET);
-        printf("  %s│%s  Status        :  %sCOMPRESSED%s                           %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET, C_GREEN, C_RESET);
-        printf("  %s│%s  Provider Run  :  %-33s %s│%s\n", C_GREEN, C_RESET, type, C_GREEN, C_RESET);
-        printf("  %s│%s  Output File   :  %-33s %s│%s\n", C_GREEN, C_RESET, "repomix-output.xml", C_GREEN, C_RESET);
+    }
+
+    int success = 0;
+    const char* provider_used = "None";
+    const char* output_file = "N/A";
+
+    if (strcmp(type, "repo") == 0 && cfg->repomix.enabled) {
+        provider_vtbl_t* repomix = get_repomix_provider();
+        if (!json_out) printf("  %s│%s  Running repomix pack...                               %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET);
+        if (repomix->run_pack(input) == 0) {
+            success = 1;
+            provider_used = "repomix";
+            output_file = "repomix-output.xml";
+        }
+    } else if (strcmp(type, "logs") == 0 && cfg->headroom.enabled) {
+        provider_vtbl_t* headroom = get_headroom_provider();
+        if (!json_out) printf("  %s│%s  Running headroom compress...                          %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET);
+        if (headroom->run_compress(input) == 0) {
+            success = 1;
+            provider_used = "headroom";
+            output_file = "compressed output"; // Or whatever Headroom outputs
+        }
+    } else {
+        if (!json_out) printf("  %s│%s  No suitable provider enabled for type: %-14s %s│%s\n", C_GREEN, C_RESET, type, C_GREEN, C_RESET);
+    }
+
+    if (!json_out) {
+        if (success) {
+            printf("  %s│%s  Status        :  %sCOMPRESSED%s                           %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET, C_GREEN, C_RESET);
+        } else {
+            printf("  %s│%s  Status        :  %sFAILED OR SKIPPED%s                    %s│%s\n", C_GREEN, C_RESET, C_RED, C_RESET, C_GREEN, C_RESET);
+        }
+        printf("  %s│%s  Provider Run  :  %-33s %s│%s\n", C_GREEN, C_RESET, provider_used, C_GREEN, C_RESET);
+        printf("  %s│%s  Output File   :  %-33s %s│%s\n", C_GREEN, C_RESET, output_file, C_GREEN, C_RESET);
         printf("  %s╰────────────────────────────────────────────────────────╯%s\n", C_GREEN, C_RESET);
         printf("\n");
     }
-    return 0;
+
+    return success ? 0 : 1;
 }

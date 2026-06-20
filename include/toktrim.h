@@ -52,6 +52,16 @@ int safe_exec(const char* binary_path, char* const argv[]);
 void log_info(const char* msg);
 void log_error(const char* msg);
 
+// provider interface
+typedef struct {
+    int (*detect)(void);
+    int (*run_pack)(const char* target_path);
+    int (*run_compress)(const char* target_file);
+} provider_vtbl_t;
+
+provider_vtbl_t* get_repomix_provider();
+provider_vtbl_t* get_headroom_provider();
+
 // cli
 int parse_args(int argc, char** argv, cli_context_t* ctx);
 
