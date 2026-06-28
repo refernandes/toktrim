@@ -337,11 +337,26 @@ int run_estimate(const char* type, const char* input, toktrim_config_t* cfg, run
 
 int run_optimize(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx) {
     int json_out = rctx && rctx->json_out;
-    char output_path[1024] = "N/A";
+    char output_path[1024] = "";
+    char absolute_output_path[2048] = "";
+    char worktree[512] = "";
+    char timestamp[32] = "";
+    const char* artifact_kind = NULL;
+    int provider_status = -1;
 
-    if (json_out) {
-        printf("{\n  \"status\": \"optimizing\",\n  \"type\": \"%s\",\n  \"input\": \"%s\"\n}\n", type, input);
-    } else {
+    if (!getcwd(worktree, sizeof(worktree))) {
+        worktree[0] = '\0';
+    }
+
+    {
+        time_t now = time(NULL);
+        struct tm* utc = gmtime(&now);
+        if (utc) {
+            strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", utc);
+        }
+    }
+
+    if (!json_out) {
         printf("\n");
         printf("  %s╭────────────────────────────────────────────────────────╮%s\n", C_GREEN, C_RESET);
         printf("  %s│%s                 %sTOKTRIM OPTIMIZATION%s                  %s│%s\n", C_GREEN, C_RESET, C_BOLD, C_RESET, C_GREEN, C_RESET);
@@ -350,32 +365,138 @@ int run_optimize(const char* type, const char* input, toktrim_config_t* cfg, run
 
     int success = 0;
     const char* provider_used = "None";
-    const char* output_file = output_path;
+    const char* output_file = "N/A";
+    const char* error_message = "no suitable provider enabled for requested type";
 
     if (strcmp(type, "repo") == 0 && cfg->repomix.enabled) {
         char artifact_dir[1024];
+        int null_fd = -1;
+        int stdout_fd = -1;
+        int stderr_fd = -1;
         provider_vtbl_t* repomix = get_repomix_provider();
+        provider_used = "repomix";
         if (!json_out) printf("  %s│%s  Running repomix pack...                               %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET);
         if (build_session_artifact_dir(rctx, artifact_dir, sizeof(artifact_dir)) == 0 &&
             ensure_directory_recursive(artifact_dir) == 0 &&
-            build_session_artifact_path(rctx, "repomap.xml", output_path, sizeof(output_path)) == 0 &&
-            repomix->run_pack(input, output_path) == 0) {
+            build_session_artifact_path(rctx, "repomap.xml", output_path, sizeof(output_path)) == 0) {
+            if (json_out) {
+                null_fd = open("/dev/null", O_WRONLY);
+                stdout_fd = dup(STDOUT_FILENO);
+                stderr_fd = dup(STDERR_FILENO);
+                if (null_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
+                    if (null_fd != -1) close(null_fd);
+                    if (stdout_fd != -1) close(stdout_fd);
+                    if (stderr_fd != -1) close(stderr_fd);
+                    provider_status = -1;
+                } else {
+                    dup2(null_fd, STDOUT_FILENO);
+                    dup2(null_fd, STDERR_FILENO);
+                    close(null_fd);
+                    provider_status = repomix->run_pack(input, output_path);
+                    dup2(stdout_fd, STDOUT_FILENO);
+                    dup2(stderr_fd, STDERR_FILENO);
+                    close(stdout_fd);
+                    close(stderr_fd);
+                }
+            } else {
+                provider_status = repomix->run_pack(input, output_path);
+            }
+        }
+
+        if (provider_status == 0) {
             success = 1;
-            provider_used = "repomix";
+            output_file = output_path;
+            artifact_kind = "repomap";
+            error_message = NULL;
+        } else {
+            error_message = "repomix failed to generate artifact";
         }
     } else if (strcmp(type, "logs") == 0 && cfg->headroom.enabled) {
         char artifact_dir[1024];
+        int null_fd = -1;
+        int stdout_fd = -1;
+        int stderr_fd = -1;
         provider_vtbl_t* headroom = get_headroom_provider();
+        provider_used = "headroom";
         if (!json_out) printf("  %s│%s  Running headroom compress...                          %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET);
         if (build_session_artifact_dir(rctx, artifact_dir, sizeof(artifact_dir)) == 0 &&
             ensure_directory_recursive(artifact_dir) == 0 &&
-            build_session_artifact_path(rctx, "compressed.log", output_path, sizeof(output_path)) == 0 &&
-            headroom->run_compress(input, output_path) == 0) {
+            build_session_artifact_path(rctx, "compressed.log", output_path, sizeof(output_path)) == 0) {
+            if (json_out) {
+                null_fd = open("/dev/null", O_WRONLY);
+                stdout_fd = dup(STDOUT_FILENO);
+                stderr_fd = dup(STDERR_FILENO);
+                if (null_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
+                    if (null_fd != -1) close(null_fd);
+                    if (stdout_fd != -1) close(stdout_fd);
+                    if (stderr_fd != -1) close(stderr_fd);
+                    provider_status = -1;
+                } else {
+                    dup2(null_fd, STDOUT_FILENO);
+                    dup2(null_fd, STDERR_FILENO);
+                    close(null_fd);
+                    provider_status = headroom->run_compress(input, output_path);
+                    dup2(stdout_fd, STDOUT_FILENO);
+                    dup2(stderr_fd, STDERR_FILENO);
+                    close(stdout_fd);
+                    close(stderr_fd);
+                }
+            } else {
+                provider_status = headroom->run_compress(input, output_path);
+            }
+        }
+
+        if (provider_status == 0) {
             success = 1;
-            provider_used = "headroom";
+            output_file = output_path;
+            artifact_kind = "compressed_log";
+            error_message = NULL;
+        } else {
+            error_message = "headroom failed to generate artifact";
         }
     } else {
         if (!json_out) printf("  %s│%s  No suitable provider enabled for type: %-14s %s│%s\n", C_GREEN, C_RESET, type, C_GREEN, C_RESET);
+    }
+
+    if (success && output_path[0] != '\0') {
+        if (output_path[0] == '/') {
+            snprintf(absolute_output_path, sizeof(absolute_output_path), "%s", output_path);
+        } else if (worktree[0] != '\0') {
+            snprintf(absolute_output_path, sizeof(absolute_output_path), "%s/%s", worktree, output_path);
+        } else {
+            snprintf(absolute_output_path, sizeof(absolute_output_path), "%s", output_path);
+        }
+    }
+
+    if (json_out) {
+        printf("{\n");
+        printf("  \"version\": 1,\n");
+        printf("  \"command\": \"optimize\",\n");
+        printf("  \"status\": \"%s\",\n", success ? "ok" : "error");
+        printf("  \"session_id\": \"%s\",\n", rctx && rctx->session_id ? rctx->session_id : "");
+        printf("  \"worktree\": \"%s\",\n", worktree);
+        printf("  \"timestamp\": \"%s\",\n", timestamp);
+        printf("  \"input\": {\n");
+        printf("    \"type\": \"%s\",\n", type);
+        printf("    \"path\": \"%s\"\n", input);
+        printf("  },\n");
+        printf("  \"policy\": {\n");
+        printf("    \"preset\": \"%s\",\n", cfg->policy_preset);
+        printf("    \"max_tokens\": %d\n", cfg->max_tokens);
+        printf("  },\n");
+        printf("  \"provider_selected\": \"%s\",\n", provider_used);
+        printf("  \"artifacts\": [\n");
+        if (success && artifact_kind && absolute_output_path[0] != '\0') {
+            printf("    {\"kind\":\"%s\",\"path\":\"%s\"}\n", artifact_kind, absolute_output_path);
+        }
+        printf("  ],\n");
+        printf("  \"warnings\": [],\n");
+        printf("  \"errors\": [");
+        if (!success && error_message) {
+            printf("\"%s\"", error_message);
+        }
+        printf("]\n");
+        printf("}\n");
     }
 
     if (!json_out) {
