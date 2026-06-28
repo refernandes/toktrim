@@ -288,3 +288,157 @@ test("readState: partial valid JSON returns object with present fields", async (
   assert.equal(result.provider_selected, "repomix");
   assert.equal(result.session_id, undefined);
 });
+
+// ── Debounce ─────────────────────────────────────────────────
+
+async function loadPluginWithControlledTime(fsMock: ReturnType<typeof createFsMock>, dateNow: () => number) {
+  const pathModule = await import("node:path");
+  const context = vm.createContext({
+    Date: { now: dateNow },
+    process: { env: { HOME: "/tmp" } },
+  });
+
+  const module = new vm.SourceTextModule(pluginSource, {
+    context,
+    identifier: `${pluginPath}?debounce`,
+  });
+
+  await module.link(async (specifier) => {
+    if (specifier === "@opencode-ai/plugin/tui") {
+      return createSyntheticModule(context, {});
+    }
+    if (specifier === "node:path") {
+      return createSyntheticModule(context, {
+        ...pathModule,
+        default: pathModule.default ?? pathModule,
+      });
+    }
+    if (specifier === "node:fs") {
+      return createSyntheticModule(context, fsMock);
+    }
+    throw new Error(`Unsupported import: ${specifier}`);
+  });
+
+  return module;
+}
+
+test("debounce: render returns cached result within 500ms", async () => {
+  let now = 1000;
+  let capturedRender: ((props: Record<string, unknown>) => unknown) | null = null;
+  const mutableState = { json: JSON.stringify({ session_id: "s1", saved_tokens: 100, healthy: true }) };
+
+  const fsMock = createMutableFsMock(mutableState, { configExists: true, sessionId: "s1" });
+
+  const mod = await loadPluginWithControlledTime(fsMock, () => now);
+  await mod.evaluate();
+  await mod.namespace.tui({
+    slots: {
+      register(slot: { render: (props: Record<string, unknown>) => unknown }) {
+        capturedRender = slot.render;
+      },
+    },
+  });
+
+  const first = capturedRender!({ name: "sidebar_content", session_id: "s1" });
+  now += 100;
+  const second = capturedRender!({ name: "sidebar_content", session_id: "s1" });
+
+  assert.equal(second, first, "should return cached panel within 500ms");
+});
+
+test("debounce: render updates after 500ms with changed state", async () => {
+  let now = 1000;
+  let capturedRender: ((props: Record<string, unknown>) => unknown) | null = null;
+  const mutableState = { json: JSON.stringify({ session_id: "s1", saved_tokens: 100, healthy: true }) };
+
+  const fsMock = createMutableFsMock(mutableState, { configExists: true, sessionId: "s1" });
+
+  const mod = await loadPluginWithControlledTime(fsMock, () => now);
+  await mod.evaluate();
+  await mod.namespace.tui({
+    slots: {
+      register(slot: { render: (props: Record<string, unknown>) => unknown }) {
+        capturedRender = slot.render;
+      },
+    },
+  });
+
+  capturedRender!({ name: "sidebar_content", session_id: "s1" });
+  mutableState.json = JSON.stringify({ session_id: "s1", saved_tokens: 0, healthy: true });
+  now += 600;
+
+  const updated = capturedRender!({ name: "sidebar_content", session_id: "s1" }) as string;
+
+  assert.ok(!updated.includes("100"), "should reflect new state without saved_tokens=100");
+});
+
+test("debounce: title and footer are also cached within 500ms", async () => {
+  let now = 1000;
+  let capturedRender: ((props: Record<string, unknown>) => unknown) | null = null;
+  const mutableState = { json: JSON.stringify({ session_id: "s1", saved_tokens: 100, healthy: true }) };
+
+  const fsMock = createMutableFsMock(mutableState, { configExists: true, sessionId: "s1" });
+
+  const mod = await loadPluginWithControlledTime(fsMock, () => now);
+  await mod.evaluate();
+  await mod.namespace.tui({
+    slots: {
+      register(slot: { render: (props: Record<string, unknown>) => unknown }) {
+        capturedRender = slot.render;
+      },
+    },
+  });
+
+  capturedRender!({ name: "sidebar_title", session_id: "s1" });
+  capturedRender!({ name: "sidebar_content", session_id: "s1" });
+  capturedRender!({ name: "sidebar_footer", session_id: "s1" });
+
+  now += 100;
+  const t2 = capturedRender!({ name: "sidebar_title", session_id: "s1" });
+  const c2 = capturedRender!({ name: "sidebar_content", session_id: "s1" });
+  const f2 = capturedRender!({ name: "sidebar_footer", session_id: "s1" });
+
+  assert.equal(t2, "TokTrim", "cached title should be correct");
+  assert.ok((c2 as string).includes("TokTrim"), "cached content should exist");
+  assert.ok((f2 as string).includes("~estimated"), "cached footer should exist");
+});
+
+/**
+ * Creates a fs mock that reads from a mutable state object,
+ * allowing state changes to be reflected in subsequent mock calls.
+ */
+function createMutableFsMock(
+  mutableState: { json: string | null },
+  options: { configExists: boolean; sessionId: string },
+) {
+  const sessionId = options.sessionId;
+  const sessionsDir = path.join(".cache", "opencode", "toktrim", "sessions");
+  const statePath = path.join(sessionsDir, sessionId, "state.json");
+  const fullStatePath = path.join("/tmp", statePath);
+  const fullSessionsDir = path.join("/tmp", sessionsDir);
+
+  return {
+    existsSync(filePath: string) {
+      if (filePath === ".toktrim/config.toml") return options.configExists;
+      if (filePath === fullStatePath) return mutableState.json !== null;
+      if (filePath === fullSessionsDir) return true;
+      return false;
+    },
+    readFileSync(filePath: string) {
+      if (filePath === fullStatePath) {
+        if (mutableState.json === null) throw new Error(`ENOENT: ${filePath}`);
+        return mutableState.json;
+      }
+      throw new Error(`ENOENT: ${filePath}`);
+    },
+    readdirSync(filePath: string) {
+      if (filePath === fullSessionsDir) {
+        return mutableState.json !== null ? [sessionId] : [];
+      }
+      throw new Error(`ENOENT: ${filePath}`);
+    },
+    statSync() {
+      return { mtimeMs: Date.now() };
+    },
+  };
+}
