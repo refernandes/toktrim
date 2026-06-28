@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <ftw.h>
+#include <time.h>
 
 // ANSI Colors
 #define C_RESET   "\033[0m"
@@ -165,6 +166,8 @@ int run_status(toktrim_config_t* cfg, int json_out) {
 }
 
 int run_estimate(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
+    char worktree[512] = "";
+    char timestamp[32] = "";
     long long baseline = get_approximate_tokens(input);
     if (baseline == 0) baseline = 50000; // Fallback se o path não existir
 
@@ -185,9 +188,48 @@ int run_estimate(const char* type, const char* input, int json_out, toktrim_conf
     
     long long optimized = (long long)(baseline * (1.0 - savings_rate));
     long long saved_tokens = baseline - optimized;
+    double savings_percent = savings_rate * 100.0;
+    double estimated_usd_saved = saved_tokens * 0.000003;
+
+    if (!getcwd(worktree, sizeof(worktree))) {
+        worktree[0] = '\0';
+    }
+
+    {
+        time_t now = time(NULL);
+        struct tm* utc = gmtime(&now);
+        if (utc) {
+            strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", utc);
+        }
+    }
 
     if (json_out) {
-        printf("{\n  \"status\": \"estimated\",\n  \"type\": \"%s\",\n  \"input\": \"%s\",\n  \"baseline_tokens\": %lld,\n  \"estimated_tokens\": %lld\n}\n", type, input, baseline, optimized);
+        printf("{\n");
+        printf("  \"version\": 1,\n");
+        printf("  \"command\": \"estimate\",\n");
+        printf("  \"status\": \"ok\",\n");
+        printf("  \"session_id\": \"\",\n");
+        printf("  \"worktree\": \"%s\",\n", worktree);
+        printf("  \"timestamp\": \"%s\",\n", timestamp);
+        printf("  \"input\": {\n");
+        printf("    \"type\": \"%s\",\n", type);
+        printf("    \"path\": \"%s\"\n", input);
+        printf("  },\n");
+        printf("  \"policy\": {\n");
+        printf("    \"preset\": \"%s\",\n", cfg->policy_preset);
+        printf("    \"max_tokens\": %d\n", cfg->max_tokens);
+        printf("  },\n");
+        printf("  \"provider_selected\": \"%s\",\n", provider);
+        printf("  \"metrics\": {\n");
+        printf("    \"baseline_tokens\": %lld,\n", baseline);
+        printf("    \"optimized_tokens\": %lld,\n", optimized);
+        printf("    \"saved_tokens\": %lld,\n", saved_tokens);
+        printf("    \"savings_percent\": %.2f,\n", savings_percent);
+        printf("    \"estimated_usd_saved\": %.6f\n", estimated_usd_saved);
+        printf("  },\n");
+        printf("  \"warnings\": [\"metrics are estimated (bytes/4 heuristic)\"],\n");
+        printf("  \"errors\": []\n");
+        printf("}\n");
     } else {
         printf("\n");
         printf("  %s╭────────────────────────────────────────────────────────╮%s\n", C_CYAN, C_RESET);
