@@ -266,27 +266,7 @@ async function writeBootstrapHealthState(healthy: boolean): Promise<void> {
     return;
   }
 
-  const sessionDir = getSessionDir();
-  const statePath = getStatePath();
-  const tmpPath = `${statePath}.tmp`;
-
-  try {
-    await mkdir(sessionDir, { recursive: true });
-    await writeFile(
-      tmpPath,
-      JSON.stringify({ session_id: sessionId, healthy: false }, null, 2),
-      "utf8",
-    );
-    await rename(tmpPath, statePath);
-  } catch (error) {
-    console.warn("toktrim: failed to write bootstrap health state", error);
-
-    try {
-      await rm(tmpPath, { force: true });
-    } catch {
-      return;
-    }
-  }
+  await updateSessionState({ healthy: false, session_id: sessionId });
 }
 
 export function isEligible(toolName: string, command: string, outputBytes: number): boolean {
