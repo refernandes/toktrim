@@ -536,9 +536,9 @@ function createCompactionSummary(state: Record<string, unknown>): string | null 
     lines.push(`- Provider: ${state.provider_selected}`);
   }
 
-  if (typeof state.saved_tokens === "number") {
+  if (typeof state.session_saved_tokens === "number") {
     const savingsSuffix = typeof state.savings_percent === "number" ? ` (~${state.savings_percent}%)` : "";
-    lines.push(`- Session saved: ${state.saved_tokens} tokens${savingsSuffix}`);
+    lines.push(`- Session saved: ${state.session_saved_tokens} tokens${savingsSuffix}`);
   }
 
   if (typeof state.last_artifact_path === "string") {
