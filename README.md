@@ -1,113 +1,74 @@
-<div align="center">
-  <h1>🧠 TokTrim v1</h1>
-  <p><b>Economy Control Plane for Agentic Workflows</b></p>
-</div>
+# TokTrim
 
----
+## What it is
 
-## 🎯 O Que é o TokTrim?
+TokTrim is a C engine for token economy in agentic workflows, with native plugins for opencode. It compresses context, estimates savings, and tracks session economics without external API calls.
 
-O **TokTrim** é um motor local escrito em C de alta performance focado em uma única missão: **Maximizar a economia de contexto (Tokens) e dinheiro (USD) nas chamadas de IA sem perda de qualidade**.
+## Architecture
 
-Diferente de scripts ingênuos ou injetores de configuração global que causam *side-effects*, o TokTrim atua como um **Control Plane**. Ele calcula os custos locais, orquestra dinamicamente as melhores ferramentas de compressão do mercado (`Repomix`, `Headroom`) usando a sua própria CPU e fornece um benchmark claro do seu ROI antes de cada chamada.
-
-## 💰 A Visão de Economia (Economy-First)
-
-Por que usar o TokTrim? Porque enviar 80.000 tokens repetidos ou irrelevantes custa caro, causa degradação de contexto ("Lost in the Middle") e aumenta muito a latência da IA.
-
-O TokTrim implementa o cálculo:
-`Economia Líquida = Custo Baseline - Custo Otimizado - Latência Local`
-
-- **Custo 0$ em Decisão:** A ferramenta roda localmente na sua máquina (`C` e `execvp`), garantindo que o Agente receba o input filtrado.
-- **Transparência Absoluta:** O comando `toktrim estimate` te diz exatamente quantos tokens você vai economizar *antes* de executar a tarefa.
-- **Opt-in por Projeto:** Suas regras residem no arquivo `.toktrim/config.toml` do seu repositório. O TokTrim não altera seu ambiente global e não injeta dogmas.
-
----
-
-## 🏗️ Arquitetura e Engenharia (>90/100)
-
-O TokTrim v1 abandonou o velho fluxo de instaladores de shell acoplados. A engenharia foi refeita sob padrões robustos:
-
-1. **CLI Modular (`src/cli`)**: Parser escalável (`doctor`, `estimate`, `optimize`, `benchmark`, `status`).
-2. **Execução Segura (`src/util/safe_exec.c`)**: Zero uso de `system()`. Invocação limpa nativa de Linux/macOS com `fork()` e `execvp()`.
-3. **Desacoplamento de Providers (`src/providers`)**: Repomix e Headroom agora são módulos plugáveis com interface padrão (`provider_vtbl_t`). Facilidade para plugar novos *minimizers*.
-4. **Configuração Previsível (`src/config`)**: Políticas declaradas puramente em TOML. Fallback local vs global limpo.
-
----
-
-## 🚀 Instalação e Uso
-
-### Build Local
-```bash
-make
+```
+toktrim (C engine)
+  └── JSON contract (doctor/status/estimate/optimize/benchmark)
+.opencode/plugins/
+  ├── toktrim-server.ts  (tools + hooks + session state)
+  └── toktrim-tui.ts     (sidebar panel)
+.opencode/skills/
+  ├── toktrim-economy.md
+  ├── toktrim-doctor.md
+  └── toktrim-memory.md  (optional)
+toktrim-memory/          (optional MCP server)
 ```
 
-### Comandos Principais (CLI)
+## Quick start
 
-* **Status e Políticas Locais:**
-  ```bash
-  ./toktrim status
-  ```
-  *Lê seu `.toktrim/config.toml` e informa quais engines estão habilitadas para o diretório atual.*
+1. `make`
+2. `cp .toktrim/config.toml.example .toktrim/config.toml` and adjust
+3. Open project in opencode (plugins load automatically)
 
-* **Estimar Economia (Sem Mutação):**
-  ```bash
-  ./toktrim estimate --type repo --input src
-  ```
-  *Exibe um painel de inteligência de custos com a projeção de tokens salvos usando a melhor policy do projeto.*
+## Commands
 
-* **Otimizar Contexto Real:**
-  ```bash
-  ./toktrim optimize --type logs --input build.log
-  ```
-  *Delega de forma inteligente para a ferramenta escolhida (Ex: Repomix para codebase, Headroom para traces).*
+| Command | Description | `--json` |
+|---------|-------------|----------|
+| `doctor` | Check environment and provider health | yes |
+| `status` | Show current policy and provider state | yes |
+| `estimate` | Preview token savings for a path | yes |
+| `optimize` | Compress input using best provider | yes |
+| `benchmark` | Run full pipeline with comparison report | yes |
 
-* **Benchmark Real:**
-  ```bash
-  ./toktrim benchmark --type repo --input .
-  ```
-  *Roda o pipeline completo, calcula o baseline, executa as reduções e apresenta um dashboard comparativo de tokens descartados, comprovando até 80%+ de ganho financeiro.*
+## Session isolation
 
----
+Each opencode session gets a unique `--session-id` and isolated `--state-dir`.
+State files are stored in `~/.cache/opencode/toktrim/sessions/<session_id>/state.json`.
+No state is shared between sessions unless explicitly configured.
 
-## 🔧 Configuração Opt-In (`.toktrim/config.toml`)
+## toktrim-memory (optional)
 
-No diretório raiz do seu projeto, crie o arquivo com as políticas:
+Optional MCP server for cross-session memory. Works offline with SQLite FTS5
+or with any OpenAI-compatible provider.
 
-```toml
-[project]
-name = "my-awesome-repo"
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TOKTRIM_MEMORY_DB_PATH` | `~/.cache/toktrim/memory.db` | SQLite database path |
+| `TOKTRIM_MEMORY_PROVIDER` | `local` | Provider (local or openai-compatible) |
 
-[budget]
-max_tokens_per_task = 40000
+See `toktrim-memory/README.md` for details.
 
-[providers.repomix]
-enabled = true
-compress = true
+## Config reference
 
-[providers.headroom]
-enabled = true
-mode = "wrap"
+`.toktrim/config.toml` fields:
 
-[policy]
-preset = "balanced"
-```
+| Field | Default | Description |
+|-------|---------|-------------|
+| `policy.preset` | `cheap-repo` | cheap-repo, balanced, or aggressive |
+| `policy.max_tokens` | `100000` | Maximum tokens per operation |
+| `providers.repomix.enabled` | `true` | Enable repomix provider |
+| `providers.headroom.enabled` | `false` | Enable headroom provider |
 
-> **Aviso de Engenharia:** O TokTrim não mais força comportamentos universais. Ele opera estritamente nas regras que você confia no seu repositório, garantindo controle de versão e isolamento.
+See `.toktrim/config.toml.example` for a complete template.
 
----
-
-## 🧪 Suíte de Testes e Benchmark
-
-O TokTrim acompanha tanto **testes unitários** (garantindo que o core do parser funcione corretamente) quanto uma **suíte de benchmark** ostensiva (`scripts/comprehensive_benchmark.sh`) que você pode rodar para constatar o ROI real na sua base de código.
+## Tests
 
 ```bash
-chmod +x scripts/comprehensive_benchmark.sh
-./scripts/comprehensive_benchmark.sh
+npm --prefix .opencode test   # TypeScript plugin tests (open/close)
+make test-contract             # C contract tests
 ```
-
----
-
-<div align="center">
-  <p><i>Desenvolvido seguindo princípios de arquitetura de software, observabilidade e performance.</i></p>
-</div>
