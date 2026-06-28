@@ -6,3 +6,4 @@ compressed*.log
 obj/
 toktrim
 test_cli
+.toktrim/config.toml

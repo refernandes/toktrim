@@ -1,0 +1,17 @@
+# TokTrim configuration
+# Copy to .toktrim/config.toml and adjust as needed
+
+[policy]
+preset = "cheap-repo"      # cheap-repo | balanced | aggressive
+max_tokens = 100000
+
+[providers]
+[providers.repomix]
+enabled = true
+
+[providers.headroom]
+enabled = false
+
+[session]
+# state_dir defaults to ~/.cache/opencode/toktrim
+# state_dir = "/custom/path"
