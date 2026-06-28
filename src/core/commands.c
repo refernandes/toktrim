@@ -364,12 +364,15 @@ int run_optimize(const char* type, const char* input, toktrim_config_t* cfg, run
             provider_used = "repomix";
         }
     } else if (strcmp(type, "logs") == 0 && cfg->headroom.enabled) {
+        char artifact_dir[1024];
         provider_vtbl_t* headroom = get_headroom_provider();
         if (!json_out) printf("  %s│%s  Running headroom compress...                          %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET);
-        if (headroom->run_compress(input, NULL) == 0) {
+        if (build_session_artifact_dir(rctx, artifact_dir, sizeof(artifact_dir)) == 0 &&
+            ensure_directory_recursive(artifact_dir) == 0 &&
+            build_session_artifact_path(rctx, "compressed.log", output_path, sizeof(output_path)) == 0 &&
+            headroom->run_compress(input, output_path) == 0) {
             success = 1;
             provider_used = "headroom";
-            snprintf(output_path, sizeof(output_path), "%s", "compressed output");
         }
     } else {
         if (!json_out) printf("  %s│%s  No suitable provider enabled for type: %-14s %s│%s\n", C_GREEN, C_RESET, type, C_GREEN, C_RESET);

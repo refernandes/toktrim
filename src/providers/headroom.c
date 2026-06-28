@@ -17,10 +17,8 @@ static int headroom_run_pack(const char* target_path, const char* output_path) {
 }
 
 static int headroom_run_compress(const char* target_file, const char* output_path) {
-    if (!target_file) return -1;
-    (void)output_path;
-    // For now we will mock the exact flags, as headroom has wrap/compress
-    char* args[] = {"headroom", "--compress", (char*)target_file, NULL};
+    if (!target_file || !output_path) return -1;
+    char* args[] = {"headroom", "compress", (char*)target_file, "--output", (char*)output_path, NULL};
     return safe_exec("headroom", args);
 }
 
