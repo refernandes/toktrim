@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 
 import { tool, type Hooks, type Plugin, type ToolResult } from "@opencode-ai/plugin";
 
 export const id = "toktrim-server";
+
+const MIN_OUTPUT_BYTES = 51_200;
+const DENY_LIST = ["apply_patch", "git apply", "sed -i", "perl -pi", "tee", "patch ", "git commit", "git push"];
+const ALLOW_LIST = ["rg ", "grep ", "find ", "fd ", "tree", "git diff", "git log", "cat ", "ls -", "du ", "wc "];
 
 const sessionId = randomUUID();
 const stateDir = path.join(process.env.HOME ?? "", ".cache", "opencode", "toktrim");
@@ -119,6 +124,80 @@ export async function runToktrim(args: string[]): Promise<any> {
   });
 }
 
+function getSessionDir() {
+  return path.join(stateDir, "sessions", sessionId);
+}
+
+async function runToktrimOptimize(type: string, input: string): Promise<any> {
+  return runToktrim([
+    "optimize",
+    "--json",
+    "--type",
+    type,
+    "--input",
+    input,
+    "--session-id",
+    sessionId,
+    "--state-dir",
+    stateDir,
+  ]);
+}
+
+async function writeCompressionState(patch: Record<string, unknown>): Promise<void> {
+  const sessionDir = getSessionDir();
+  const statePath = path.join(sessionDir, "state.json");
+
+  try {
+    await mkdir(sessionDir, { recursive: true });
+
+    let current: Record<string, unknown> = {};
+
+    try {
+      current = JSON.parse(await readFile(statePath, "utf8"));
+    } catch {
+      current = {};
+    }
+
+    await writeFile(
+      statePath,
+      JSON.stringify(
+        {
+          ...current,
+          ...patch,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch {
+    // Silent no-op: plugin must never surface hook failures.
+  }
+}
+
+export function isEligible(toolName: string, command: string, outputBytes: number): boolean {
+  if (!activated) {
+    return false;
+  }
+
+  if (toolName !== "bash") {
+    return false;
+  }
+
+  if (outputBytes < MIN_OUTPUT_BYTES) {
+    return false;
+  }
+
+  if (DENY_LIST.some((entry) => command.includes(entry))) {
+    return false;
+  }
+
+  if (ALLOW_LIST.some((entry) => command.includes(entry))) {
+    return true;
+  }
+
+  return false;
+}
+
 function createTools(): NonNullable<Hooks["tool"]> {
   return {
     toktrim_status: tool({
@@ -188,7 +267,7 @@ function createTools(): NonNullable<Hooks["tool"]> {
           "--state-dir",
           stateDir,
         ];
-        const result = await runToktrim(args);
+        const result = await runToktrimOptimize(type, input);
         return result ? createToolSuccess("optimize", result) : createToolError("optimize", args);
       },
     }),
@@ -221,6 +300,64 @@ function createTools(): NonNullable<Hooks["tool"]> {
   };
 }
 
+function createAfterHook(): NonNullable<Hooks["tool.execute.after"]> {
+  return async (input, output) => {
+    try {
+      const command = typeof input.args?.command === "string" ? input.args.command : "";
+      const combinedOutput = output.output ?? "";
+      const outputBytes = Buffer.byteLength(combinedOutput, "utf8");
+
+      if (!isEligible(input.tool, command, outputBytes)) {
+        return;
+      }
+
+      const tmpDir = path.join(getSessionDir(), "tmp");
+      const tmpPath = path.join(tmpDir, `${input.callID}.log`);
+
+      await mkdir(tmpDir, { recursive: true });
+      await writeFile(tmpPath, combinedOutput, "utf8");
+
+      try {
+        const compressed = await runToktrimOptimize("logs", tmpPath);
+        const artifactPath = compressed?.artifacts?.[0]?.path;
+
+        if (typeof artifactPath !== "string") {
+          return;
+        }
+
+        let savedBytes = 0;
+
+        try {
+          const artifactStats = await stat(artifactPath);
+          savedBytes = Math.max(outputBytes - artifactStats.size, 0);
+        } catch {
+          savedBytes = 0;
+        }
+
+        output.metadata = {
+          ...(output.metadata ?? {}),
+          _toktrim: {
+            compressed: true,
+            artifact_path: artifactPath,
+            original_bytes: outputBytes,
+            session_id: sessionId,
+          },
+        };
+
+        await writeCompressionState({
+          last_compress_at: new Date().toISOString(),
+          saved_bytes: savedBytes,
+          session_id: sessionId,
+        });
+      } finally {
+        await rm(tmpPath, { force: true });
+      }
+    } catch {
+      return;
+    }
+  };
+}
+
 async function bootstrap(directory: string): Promise<Hooks> {
   const configPath = path.join(directory, ".toktrim", "config.toml");
 
@@ -242,6 +379,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
   if (!doctor || doctor.healthy !== true) {
     return {
       tool: createTools(),
+      "tool.execute.after": createAfterHook(),
     };
   }
 
@@ -255,6 +393,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
 
   return {
     tool: createTools(),
+    "tool.execute.after": createAfterHook(),
   };
 }
 
