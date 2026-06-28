@@ -515,44 +515,158 @@ int run_optimize(const char* type, const char* input, toktrim_config_t* cfg, run
 }
 
 int run_benchmark(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx) {
+    int json_out = rctx && rctx->json_out;
     long long baseline = get_approximate_tokens(input);
+    long long optimized = 0;
+    long long saved = 0;
+    double savings_pct = 0.0;
+    double estimated_usd_saved = 0.0;
+    int optimize_status = -1;
+    int success = 0;
+    char artifact_path[1024] = "";
+    char absolute_artifact_path[2048] = "";
+    char worktree[512] = "";
+    char timestamp[32] = "";
+    const char* provider_used = "None";
+    const char* artifact_kind = NULL;
+    const char* error_message = "no suitable provider enabled for requested type";
+    const char* artifact_name = NULL;
+    run_context_t optimize_ctx;
+
     if (baseline == 0) baseline = 50000;
 
-    printf("\n");
-    printf("  %s╭────────────────────────────────────────────────────────╮%s\n", C_YELLOW, C_RESET);
-    printf("  %s│%s                 %sTOKTRIM BENCHMARK RUN%s                 %s│%s\n", C_YELLOW, C_RESET, C_BOLD, C_RESET, C_YELLOW, C_RESET);
-    printf("  %s├────────────────────────────────────────────────────────┤%s\n", C_YELLOW, C_RESET);
-    printf("  %s│%s  1. Baseline Input Tokens: %-26lld %s│%s\n", C_YELLOW, C_RESET, baseline, C_YELLOW, C_RESET);
-    printf("  %s│%s  2. Running Optimizer...                                %s│%s\n", C_YELLOW, C_RESET, C_YELLOW, C_RESET);
-
-    run_optimize(type, input, cfg, rctx);
-
-    long long optimized = 0;
-    if (strcmp(type, "repo") == 0) {
-        char artifact_path[1024];
-
-        if (build_session_artifact_path(rctx, "repomap.xml", artifact_path, sizeof(artifact_path)) == 0) {
-            optimized = get_approximate_tokens(artifact_path);
-        }
-    } else {
-        optimized = get_approximate_tokens("compressed_output"); // Mock fallback
+    if (!getcwd(worktree, sizeof(worktree))) {
+        worktree[0] = '\0';
     }
 
-    if (optimized == 0) optimized = baseline / 3;
+    {
+        time_t now = time(NULL);
+        struct tm* utc = gmtime(&now);
+        if (utc) {
+            strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", utc);
+        }
+    }
 
-    long long saved = baseline - optimized;
-    double savings_pct = ((double)saved / baseline) * 100.0;
+    optimize_ctx.session_id = rctx && rctx->session_id ? rctx->session_id : "default";
+    optimize_ctx.state_dir = rctx ? rctx->state_dir : NULL;
+    optimize_ctx.json_out = 0;
+
+    if (strcmp(type, "repo") == 0 && cfg->repomix.enabled) {
+        provider_used = "repomix";
+        artifact_kind = "repomap";
+        artifact_name = "repomap.xml";
+        error_message = "repomix failed to generate artifact";
+    } else if (strcmp(type, "logs") == 0 && cfg->headroom.enabled) {
+        provider_used = "headroom";
+        artifact_kind = "compressed_log";
+        artifact_name = "compressed.log";
+        error_message = "headroom failed to generate artifact";
+    }
+
+    if (!json_out) {
+        printf("\n");
+        printf("  %s╭────────────────────────────────────────────────────────╮%s\n", C_YELLOW, C_RESET);
+        printf("  %s│%s                 %sTOKTRIM BENCHMARK RUN%s                 %s│%s\n", C_YELLOW, C_RESET, C_BOLD, C_RESET, C_YELLOW, C_RESET);
+        printf("  %s├────────────────────────────────────────────────────────┤%s\n", C_YELLOW, C_RESET);
+        printf("  %s│%s  1. Baseline Input Tokens: %-26lld %s│%s\n", C_YELLOW, C_RESET, baseline, C_YELLOW, C_RESET);
+        printf("  %s│%s  2. Running Optimizer...                                %s│%s\n", C_YELLOW, C_RESET, C_YELLOW, C_RESET);
+        optimize_status = run_optimize(type, input, cfg, &optimize_ctx);
+    } else {
+        int null_fd = open("/dev/null", O_WRONLY);
+        int stdout_fd = dup(STDOUT_FILENO);
+        int stderr_fd = dup(STDERR_FILENO);
+
+        if (null_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
+            if (null_fd != -1) close(null_fd);
+            if (stdout_fd != -1) close(stdout_fd);
+            if (stderr_fd != -1) close(stderr_fd);
+            optimize_status = -1;
+        } else {
+            fflush(stdout);
+            fflush(stderr);
+            dup2(null_fd, STDOUT_FILENO);
+            dup2(null_fd, STDERR_FILENO);
+            close(null_fd);
+            optimize_status = run_optimize(type, input, cfg, &optimize_ctx);
+            fflush(stdout);
+            fflush(stderr);
+            dup2(stdout_fd, STDOUT_FILENO);
+            dup2(stderr_fd, STDERR_FILENO);
+            close(stdout_fd);
+            close(stderr_fd);
+        }
+    }
+
+    if (artifact_name &&
+        build_session_artifact_path(&optimize_ctx, artifact_name, artifact_path, sizeof(artifact_path)) == 0 &&
+        access(artifact_path, F_OK) == 0) {
+        optimized = get_approximate_tokens(artifact_path);
+        success = optimize_status == 0;
+    } else {
+        optimized = 0;
+        success = 0;
+    }
+
+    if (success) {
+        if (artifact_path[0] == '/') {
+            snprintf(absolute_artifact_path, sizeof(absolute_artifact_path), "%s", artifact_path);
+        } else if (worktree[0] != '\0') {
+            snprintf(absolute_artifact_path, sizeof(absolute_artifact_path), "%s/%s", worktree, artifact_path);
+        } else {
+            snprintf(absolute_artifact_path, sizeof(absolute_artifact_path), "%s", artifact_path);
+        }
+
+        saved = baseline - optimized;
+        savings_pct = baseline > 0 ? ((double)saved / baseline) * 100.0 : 0.0;
+        estimated_usd_saved = saved * 0.000003;
+        error_message = NULL;
+    }
+
+    if (json_out) {
+        printf("{\n");
+        printf("  \"version\": 1,\n");
+        printf("  \"command\": \"benchmark\",\n");
+        printf("  \"status\": \"%s\",\n", success ? "ok" : "error");
+        printf("  \"session_id\": \"%s\",\n", optimize_ctx.session_id ? optimize_ctx.session_id : "");
+        printf("  \"worktree\": \"%s\",\n", worktree);
+        printf("  \"timestamp\": \"%s\",\n", timestamp);
+        printf("  \"input\": {\n");
+        printf("    \"type\": \"%s\",\n", type);
+        printf("    \"path\": \"%s\"\n", input);
+        printf("  },\n");
+        printf("  \"provider_selected\": \"%s\",\n", provider_used);
+        printf("  \"metrics\": {\n");
+        printf("    \"baseline_tokens\": %lld,\n", baseline);
+        printf("    \"optimized_tokens\": %lld,\n", optimized);
+        printf("    \"saved_tokens\": %lld,\n", saved);
+        printf("    \"savings_percent\": %.2f,\n", savings_pct);
+        printf("    \"estimated_usd_saved\": %.6f\n", estimated_usd_saved);
+        printf("  },\n");
+        printf("  \"artifacts\": [\n");
+        if (success && artifact_kind && absolute_artifact_path[0] != '\0') {
+            printf("    {\"kind\":\"%s\",\"path\":\"%s\"}\n", artifact_kind, absolute_artifact_path);
+        }
+        printf("  ],\n");
+        printf("  \"warnings\": [\"metrics are estimated (bytes/4 heuristic)\"],\n");
+        printf("  \"errors\": [");
+        if (!success && error_message) {
+            printf("\"%s\"", error_message);
+        }
+        printf("]\n");
+        printf("}\n");
+        return success ? 0 : 1;
+    }
 
     printf("  %s╭────────────────────────────────────────────────────────╮%s\n", C_YELLOW, C_RESET);
     printf("  %s│%s                  %sBENCHMARK RESULTS%s                    %s│%s\n", C_YELLOW, C_RESET, C_BOLD, C_RESET, C_YELLOW, C_RESET);
     printf("  %s├────────────────────────────────────────────────────────┤%s\n", C_YELLOW, C_RESET);
     printf("  %s│%s  %sTokens Before%s :  %-33lld %s│%s\n", C_YELLOW, C_RESET, C_GRAY, C_RESET, baseline, C_YELLOW, C_RESET);
-    printf("  %s│%s  %sTokens After%s  :  %s%-33lld%s %s│%s\n", C_YELLOW, C_RESET, C_GRAY, C_RESET, C_GREEN, optimized, C_RESET, C_YELLOW, C_RESET);
-    printf("  %s│%s  %sTokens Saved%s  :  %s%-33lld%s %s│%s\n", C_YELLOW, C_RESET, C_GRAY, C_RESET, C_YELLOW, saved, C_RESET, C_YELLOW, C_RESET);
+    printf("  %s│%s  %sTokens After%s  :  %s%-33lld%s %s│%s\n", C_YELLOW, C_RESET, C_GRAY, C_RESET, success ? C_GREEN : C_RED, optimized, C_RESET, C_YELLOW, C_RESET);
+    printf("  %s│%s  %sTokens Saved%s  :  %s%-33lld%s %s│%s\n", C_YELLOW, C_RESET, C_GRAY, C_RESET, success ? C_YELLOW : C_RED, saved, C_RESET, C_YELLOW, C_RESET);
     printf("  %s│%s                                                        %s│%s\n", C_YELLOW, C_RESET, C_YELLOW, C_RESET);
-    printf("  %s│%s  %sReal Savings%s  :  %s%.2f%%%s                                 %s│%s\n", C_YELLOW, C_RESET, C_GRAY, C_RESET, C_GREEN, savings_pct, C_RESET, C_YELLOW, C_RESET);
+    printf("  %s│%s  %sReal Savings%s  :  %s%.2f%%%s                                 %s│%s\n", C_YELLOW, C_RESET, C_GRAY, C_RESET, success ? C_GREEN : C_RED, savings_pct, C_RESET, C_YELLOW, C_RESET);
     printf("  %s╰────────────────────────────────────────────────────────╯%s\n", C_YELLOW, C_RESET);
     printf("\n");
 
-    return 0;
+    return success ? 0 : 1;
 }
