@@ -415,7 +415,7 @@ function createTools(): NonNullable<Hooks["tool"]> {
       args: { query: tool.schema.string() },
       async execute({ query }: { query: string }) {
         if (!activated) {
-          return [];
+          return null as any;
         }
 
         try {
