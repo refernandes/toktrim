@@ -9,16 +9,17 @@ static int repomix_detect(void) {
     return 0;
 }
 
-static int repomix_run_pack(const char* target_path) {
+static int repomix_run_pack(const char* target_path, const char* output_path) {
     if (!target_path) target_path = ".";
-    // repomix --compress --no-files
-    char* args[] = {"repomix", "--compress", "--no-files", NULL};
+    if (!output_path) return -1;
+    char* args[] = {"repomix", "--compress", "--no-files", (char*)target_path, "--output", (char*)output_path, NULL};
     return safe_exec("repomix", args);
 }
 
-static int repomix_run_compress(const char* target_file) {
+static int repomix_run_compress(const char* target_file, const char* output_path) {
     // Repomix is meant for repos, but if asked to compress a single file:
     (void)target_file;
+    (void)output_path;
     return -1; // Not the primary use case for Repomix
 }
 

@@ -50,6 +50,12 @@ typedef struct {
     char policy_preset[64];
 } toktrim_config_t;
 
+typedef struct {
+    const char* session_id;
+    const char* state_dir;
+    int json_out;
+} run_context_t;
+
 // utils
 int safe_exec(const char* binary_path, char* const argv[]);
 void log_info(const char* msg);
@@ -58,8 +64,8 @@ void log_error(const char* msg);
 // provider interface
 typedef struct {
     int (*detect)(void);
-    int (*run_pack)(const char* target_path);
-    int (*run_compress)(const char* target_file);
+    int (*run_pack)(const char* target_path, const char* output_path);
+    int (*run_compress)(const char* target_file, const char* output_path);
 } provider_vtbl_t;
 
 provider_vtbl_t* get_repomix_provider();
@@ -73,12 +79,12 @@ void load_default_config(toktrim_config_t* cfg);
 int parse_local_config(const char* filepath, toktrim_config_t* cfg);
 
 // core
-int run_doctor(int json_out);
+int run_doctor(run_context_t* rctx);
 int run_install(const char* target);
-int run_status(toktrim_config_t* cfg, int json_out);
-int run_estimate(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
-int run_optimize(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
-int run_benchmark(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
+int run_status(toktrim_config_t* cfg, run_context_t* rctx);
+int run_estimate(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx);
+int run_optimize(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx);
+int run_benchmark(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx);
 
 // cli
 int run_interactive(toktrim_config_t* cfg);

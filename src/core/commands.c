@@ -1,4 +1,5 @@
 #include "toktrim.h"
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <ftw.h>
@@ -64,8 +65,89 @@ static long long get_approximate_tokens(const char* path) {
     return total_bytes / 4;
 }
 
-int run_doctor(int json_out) {
+static int ensure_directory_recursive(const char* path) {
+    char buffer[1024];
+    size_t length;
+    char* cursor;
+    struct stat st;
+
+    if (!path || !*path) {
+        return -1;
+    }
+
+    length = strlen(path);
+    if (length >= sizeof(buffer)) {
+        return -1;
+    }
+
+    memcpy(buffer, path, length + 1);
+    if (length > 1 && buffer[length - 1] == '/') {
+        buffer[length - 1] = '\0';
+    }
+
+    for (cursor = buffer + 1; *cursor; cursor++) {
+        if (*cursor != '/') {
+            continue;
+        }
+
+        *cursor = '\0';
+        if (mkdir(buffer, 0755) != 0 && errno != EEXIST) {
+            return -1;
+        }
+        *cursor = '/';
+    }
+
+    if (mkdir(buffer, 0755) != 0 && errno != EEXIST) {
+        return -1;
+    }
+
+    if (stat(buffer, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static int build_session_artifact_dir(const run_context_t* rctx, char* artifact_dir, size_t artifact_dir_size) {
+    int written;
+
+    if (!rctx || !rctx->state_dir || !rctx->session_id || !artifact_dir) {
+        return -1;
+    }
+
+    written = snprintf(
+        artifact_dir,
+        artifact_dir_size,
+        "%s/sessions/%s/artifacts",
+        rctx->state_dir,
+        rctx->session_id
+    );
+
+    return written >= 0 && (size_t)written < artifact_dir_size ? 0 : -1;
+}
+
+static int build_session_artifact_path(const run_context_t* rctx, const char* filename, char* artifact_path, size_t artifact_path_size) {
+    int written;
+
+    if (!filename || !artifact_path) {
+        return -1;
+    }
+
+    written = snprintf(
+        artifact_path,
+        artifact_path_size,
+        "%s/sessions/%s/artifacts/%s",
+        rctx->state_dir,
+        rctx->session_id,
+        filename
+    );
+
+    return written >= 0 && (size_t)written < artifact_path_size ? 0 : -1;
+}
+
+int run_doctor(run_context_t* rctx) {
     const char* config_path = ".toktrim/config.toml";
+    int json_out = rctx && rctx->json_out;
     int config_exists = access(config_path, F_OK) == 0;
     int config_parseable = 0;
     int repomix_in_path;
@@ -136,7 +218,9 @@ int run_install(const char* target) {
     return 0;
 }
 
-int run_status(toktrim_config_t* cfg, int json_out) {
+int run_status(toktrim_config_t* cfg, run_context_t* rctx) {
+    int json_out = rctx && rctx->json_out;
+
     if (json_out) {
         printf("{\n");
         printf("  \"version\": 1,\n");
@@ -165,9 +249,10 @@ int run_status(toktrim_config_t* cfg, int json_out) {
     return 0;
 }
 
-int run_estimate(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
+int run_estimate(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx) {
     char worktree[512] = "";
     char timestamp[32] = "";
+    int json_out = rctx && rctx->json_out;
     long long baseline = get_approximate_tokens(input);
     if (baseline == 0) baseline = 50000; // Fallback se o path não existir
 
@@ -250,7 +335,10 @@ int run_estimate(const char* type, const char* input, int json_out, toktrim_conf
     return 0;
 }
 
-int run_optimize(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
+int run_optimize(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx) {
+    int json_out = rctx && rctx->json_out;
+    char output_path[1024] = "N/A";
+
     if (json_out) {
         printf("{\n  \"status\": \"optimizing\",\n  \"type\": \"%s\",\n  \"input\": \"%s\"\n}\n", type, input);
     } else {
@@ -262,23 +350,26 @@ int run_optimize(const char* type, const char* input, int json_out, toktrim_conf
 
     int success = 0;
     const char* provider_used = "None";
-    const char* output_file = "N/A";
+    const char* output_file = output_path;
 
     if (strcmp(type, "repo") == 0 && cfg->repomix.enabled) {
+        char artifact_dir[1024];
         provider_vtbl_t* repomix = get_repomix_provider();
         if (!json_out) printf("  %s│%s  Running repomix pack...                               %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET);
-        if (repomix->run_pack(input) == 0) {
+        if (build_session_artifact_dir(rctx, artifact_dir, sizeof(artifact_dir)) == 0 &&
+            ensure_directory_recursive(artifact_dir) == 0 &&
+            build_session_artifact_path(rctx, "repomap.xml", output_path, sizeof(output_path)) == 0 &&
+            repomix->run_pack(input, output_path) == 0) {
             success = 1;
             provider_used = "repomix";
-            output_file = "repomix-output.xml";
         }
     } else if (strcmp(type, "logs") == 0 && cfg->headroom.enabled) {
         provider_vtbl_t* headroom = get_headroom_provider();
         if (!json_out) printf("  %s│%s  Running headroom compress...                          %s│%s\n", C_GREEN, C_RESET, C_GREEN, C_RESET);
-        if (headroom->run_compress(input) == 0) {
+        if (headroom->run_compress(input, NULL) == 0) {
             success = 1;
             provider_used = "headroom";
-            output_file = "compressed output"; // Or whatever Headroom outputs
+            snprintf(output_path, sizeof(output_path), "%s", "compressed output");
         }
     } else {
         if (!json_out) printf("  %s│%s  No suitable provider enabled for type: %-14s %s│%s\n", C_GREEN, C_RESET, type, C_GREEN, C_RESET);
@@ -299,8 +390,7 @@ int run_optimize(const char* type, const char* input, int json_out, toktrim_conf
     return success ? 0 : 1;
 }
 
-int run_benchmark(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
-    (void)json_out;
+int run_benchmark(const char* type, const char* input, toktrim_config_t* cfg, run_context_t* rctx) {
     long long baseline = get_approximate_tokens(input);
     if (baseline == 0) baseline = 50000;
 
@@ -311,11 +401,15 @@ int run_benchmark(const char* type, const char* input, int json_out, toktrim_con
     printf("  %s│%s  1. Baseline Input Tokens: %-26lld %s│%s\n", C_YELLOW, C_RESET, baseline, C_YELLOW, C_RESET);
     printf("  %s│%s  2. Running Optimizer...                                %s│%s\n", C_YELLOW, C_RESET, C_YELLOW, C_RESET);
 
-    run_optimize(type, input, 0, cfg);
+    run_optimize(type, input, cfg, rctx);
 
     long long optimized = 0;
     if (strcmp(type, "repo") == 0) {
-        optimized = get_approximate_tokens("repomix-output.xml");
+        char artifact_path[1024];
+
+        if (build_session_artifact_path(rctx, "repomap.xml", artifact_path, sizeof(artifact_path)) == 0) {
+            optimized = get_approximate_tokens(artifact_path);
+        }
     } else {
         optimized = get_approximate_tokens("compressed_output"); // Mock fallback
     }

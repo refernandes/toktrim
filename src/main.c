@@ -17,6 +17,7 @@ void print_help() {
 
 int main(int argc, char** argv) {
     toktrim_config_t cfg;
+    run_context_t rctx;
     load_default_config(&cfg);
     parse_local_config(".toktrim/config.toml", &cfg);
 
@@ -30,19 +31,23 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    rctx.session_id = ctx.session_id ? ctx.session_id : "default";
+    rctx.state_dir = ctx.state_dir;
+    rctx.json_out = ctx.json_output;
+
     switch (ctx.cmd) {
         case CMD_DOCTOR:
-            return run_doctor(ctx.json_output);
+            return run_doctor(&rctx);
         case CMD_INSTALL:
             return run_install(ctx.target);
         case CMD_STATUS:
-            return run_status(&cfg, ctx.json_output);
+            return run_status(&cfg, &rctx);
         case CMD_ESTIMATE:
-            return run_estimate(ctx.type, ctx.input, ctx.json_output, &cfg);
+            return run_estimate(ctx.type, ctx.input, &cfg, &rctx);
         case CMD_OPTIMIZE:
-            return run_optimize(ctx.type, ctx.input, ctx.json_output, &cfg);
+            return run_optimize(ctx.type, ctx.input, &cfg, &rctx);
         case CMD_BENCHMARK:
-            return run_benchmark(ctx.type, ctx.input, ctx.json_output, &cfg);
+            return run_benchmark(ctx.type, ctx.input, &cfg, &rctx);
         default:
             print_help();
             return 1;

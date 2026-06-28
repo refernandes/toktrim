@@ -12,6 +12,18 @@
 #define C_RED     "\033[31m"
 #define C_GRAY    "\033[90m"
 
+static const char* interactive_default_state_dir(void) {
+    static char default_state_dir[512];
+    char* home = getenv("HOME");
+
+    if (!home) {
+        return NULL;
+    }
+
+    snprintf(default_state_dir, sizeof(default_state_dir), "%s/.cache/opencode/toktrim", home);
+    return default_state_dir;
+}
+
 void clear_screen() {
     printf("\033[H\033[J");
 }
@@ -19,6 +31,11 @@ void clear_screen() {
 int run_interactive(toktrim_config_t* cfg) {
     char input[256];
     int choice = -1;
+    run_context_t rctx;
+
+    rctx.session_id = "interactive";
+    rctx.state_dir = interactive_default_state_dir();
+    rctx.json_out = 0;
 
     while (1) {
         printf("\n");
@@ -43,10 +60,10 @@ int run_interactive(toktrim_config_t* cfg) {
 
         switch (choice) {
             case 1:
-                run_status(cfg);
+                run_status(cfg, &rctx);
                 break;
             case 2:
-                run_doctor();
+                run_doctor(&rctx);
                 break;
             case 3:
                 {
@@ -55,7 +72,7 @@ int run_interactive(toktrim_config_t* cfg) {
                     if (fgets(dirpath, sizeof(dirpath), stdin)) {
                         dirpath[strcspn(dirpath, "\n")] = 0; // remove newline
                         if (strlen(dirpath) > 0) {
-                            run_optimize("repo", dirpath, 0, cfg);
+                            run_optimize("repo", dirpath, cfg, &rctx);
                         }
                     }
                 }
@@ -67,7 +84,7 @@ int run_interactive(toktrim_config_t* cfg) {
                     if (fgets(dirpath, sizeof(dirpath), stdin)) {
                         dirpath[strcspn(dirpath, "\n")] = 0; // remove newline
                         if (strlen(dirpath) > 0) {
-                            run_benchmark("repo", dirpath, cfg);
+                            run_benchmark("repo", dirpath, cfg, &rctx);
                         }
                     }
                 }
