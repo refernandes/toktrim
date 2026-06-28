@@ -18,6 +18,19 @@ const stateDir = path.join(process.env.HOME ?? "", ".cache", "opencode", "toktri
 
 let activated = false;
 let systemHintInjected = false;
+let memoryAvailable = false;
+
+function isMemoryAvailable(): boolean {
+  try {
+    const socket = process.env.TOKTRIM_MEMORY_SOCKET;
+    if (typeof socket === "string" && socket.length > 0) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
 
 export interface SessionState {
   session_id?: string;
@@ -301,7 +314,7 @@ export function isEligible(toolName: string, command: string, outputBytes: numbe
 }
 
 function createTools(): NonNullable<Hooks["tool"]> {
-  return {
+  const tools: NonNullable<Hooks["tool"]> = {
     toktrim_status: tool({
       description: "Show TokTrim economy status for current project",
       args: {},
@@ -415,6 +428,43 @@ function createTools(): NonNullable<Hooks["tool"]> {
       },
     }),
   };
+
+  if (memoryAvailable) {
+    tools.toktrim_memory_context = tool({
+      description: "Retrieve relevant memory for current task",
+      args: { query: tool.schema.string() },
+      async execute({ query }: { query: string }) {
+        if (!activated) {
+          return [];
+        }
+
+        try {
+          const socket = process.env.TOKTRIM_MEMORY_SOCKET;
+          if (!socket) {
+            return [];
+          }
+
+          const url = `http://${socket}/tools/search_memory`;
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ arguments: { query } }),
+          });
+
+          if (!response.ok) {
+            return [];
+          }
+
+          const data = await response.json();
+          return Array.isArray(data) ? data : [];
+        } catch {
+          return [];
+        }
+      },
+    });
+  }
+
+  return tools;
 }
 
 function createAfterHook(): NonNullable<Hooks["tool.execute.after"]> {
@@ -581,6 +631,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
 
   await writeBootstrapHealthState(true);
   activated = true;
+  memoryAvailable = isMemoryAvailable();
   console.log("toktrim: activated", {
     healthy: doctor.healthy,
     status: doctor.status,
