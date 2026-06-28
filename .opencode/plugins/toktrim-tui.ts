@@ -7,6 +7,9 @@ export const id = "toktrim-tui";
 
 export const STATE_DIR = path.join(process.env.HOME ?? "", ".cache", "opencode", "toktrim", "sessions");
 
+let cachedPanel = "";
+let lastReadAt = 0;
+
 export interface SessionState {
   session_id?: string;
   policy_preset?: string;
@@ -27,6 +30,30 @@ export enum PanelState {
   READY = "ready",
   UNHEALTHY = "unhealthy",
   ACTIVE = "active",
+}
+
+function resolvePanelStateFromState(sessionId: string | undefined, state: Partial<SessionState> | null): PanelState {
+  if (!existsSync(".toktrim/config.toml")) {
+    return PanelState.HIDDEN;
+  }
+
+  if (!sessionId) {
+    return PanelState.READY;
+  }
+
+  if (state === null) {
+    return PanelState.READY;
+  }
+
+  if (state.healthy === false) {
+    return PanelState.UNHEALTHY;
+  }
+
+  if ((state.saved_tokens ?? 0) > 0) {
+    return PanelState.ACTIVE;
+  }
+
+  return PanelState.READY;
 }
 
 export function resolveStateFile(sessionId: string): string {
@@ -99,29 +126,7 @@ function formatRow(label: string, value: string): string {
 }
 
 export function resolvePanelState(sessionId?: string): PanelState {
-  if (!existsSync(".toktrim/config.toml")) {
-    return PanelState.HIDDEN;
-  }
-
-  if (!sessionId) {
-    return PanelState.READY;
-  }
-
-  const state = readState(sessionId);
-
-  if (state === null) {
-    return PanelState.READY;
-  }
-
-  if (state.healthy === false) {
-    return PanelState.UNHEALTHY;
-  }
-
-  if ((state.saved_tokens ?? 0) > 0) {
-    return PanelState.ACTIVE;
-  }
-
-  return PanelState.READY;
+  return resolvePanelStateFromState(sessionId, sessionId ? readState(sessionId) : null);
 }
 
 export function renderPanel(state: Partial<SessionState> | null, panelState: PanelState): string {
@@ -154,11 +159,17 @@ export const tui: TuiPlugin = async (api) => {
         return null;
       }
 
-      const sessionId = props.session_id || resolveLatestSessionId();
-      const panelState = resolvePanelState(sessionId ?? undefined);
-      const state = sessionId ? readState(sessionId) : null;
+      if (Date.now() - lastReadAt < 500) {
+        return cachedPanel;
+      }
 
-      return renderPanel(state ?? {}, panelState);
+      const sessionId = props.session_id || resolveLatestSessionId();
+      const state = sessionId ? readState(sessionId) : null;
+      const panelState = resolvePanelStateFromState(sessionId ?? undefined, state);
+      cachedPanel = renderPanel(state ?? {}, panelState);
+      lastReadAt = Date.now();
+
+      return cachedPanel;
     },
   });
 };
