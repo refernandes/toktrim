@@ -19,6 +19,14 @@ export interface SessionState {
   last_artifact_path?: string;
   last_compress_at?: string;
   session_saved_tokens?: number;
+  healthy?: boolean;
+}
+
+export enum PanelState {
+  HIDDEN = "hidden",
+  READY = "ready",
+  UNHEALTHY = "unhealthy",
+  ACTIVE = "active",
 }
 
 export function resolveStateFile(sessionId: string): string {
@@ -90,22 +98,50 @@ function formatRow(label: string, value: string): string {
   return `${body.padEnd(37)}│`;
 }
 
-export function renderPanel(state: Partial<SessionState> | null): string {
+export function resolvePanelState(sessionId?: string): PanelState {
+  if (!existsSync(".toktrim/config.toml")) {
+    return PanelState.HIDDEN;
+  }
+
+  if (!sessionId) {
+    return PanelState.READY;
+  }
+
+  const state = readState(sessionId);
+
   if (state === null) {
+    return PanelState.READY;
+  }
+
+  if (state.healthy === false) {
+    return PanelState.UNHEALTHY;
+  }
+
+  if ((state.saved_tokens ?? 0) > 0) {
+    return PanelState.ACTIVE;
+  }
+
+  return PanelState.READY;
+}
+
+export function renderPanel(state: Partial<SessionState> | null, panelState: PanelState): string {
+  const sessionState = state ?? {};
+
+  if (panelState === PanelState.HIDDEN) {
     return "";
   }
 
   return [
     "┌─ TokTrim Economy ──────────────────┐",
-    formatRow("Status", "active"),
-    formatRow("Preset", state.policy_preset ?? "--"),
-    formatRow("Provider", state.provider_selected ?? "--"),
-    formatRow("Baseline", `${formatMetric(state.baseline_tokens, " tok")}`),
-    formatRow("Optimized", `${formatMetric(state.optimized_tokens, " tok")}`),
-    formatRow("Saved", `${formatMetric(state.saved_tokens, " tok")}`),
-    formatRow("Savings", `${formatMetric(state.savings_percent, "%")} [~]`),
-    formatRow("USD Est.", `${formatUsd(state.estimated_usd_saved)} [~]`),
-    formatRow("Session", formatMetric(state.session_saved_tokens)),
+    formatRow("Status", panelState),
+    formatRow("Preset", sessionState.policy_preset ?? "--"),
+    formatRow("Provider", sessionState.provider_selected ?? "--"),
+    formatRow("Baseline", `${formatMetric(sessionState.baseline_tokens, " tok")}`),
+    formatRow("Optimized", `${formatMetric(sessionState.optimized_tokens, " tok")}`),
+    formatRow("Saved", `${formatMetric(sessionState.saved_tokens, " tok")}`),
+    formatRow("Savings", `${formatMetric(sessionState.savings_percent, "%")} [~]`),
+    formatRow("USD Est.", `${formatUsd(sessionState.estimated_usd_saved)} [~]`),
+    formatRow("Session", formatMetric(sessionState.session_saved_tokens)),
     "└────────────────────────────────────┘",
     "[~] indicates metric estimated (bytes/4 heuristic)",
   ].join("\n");
@@ -119,12 +155,10 @@ export const tui: TuiPlugin = async (api) => {
       }
 
       const sessionId = props.session_id || resolveLatestSessionId();
+      const panelState = resolvePanelState(sessionId ?? undefined);
+      const state = sessionId ? readState(sessionId) : null;
 
-      if (!sessionId) {
-        return "";
-      }
-
-      return renderPanel(readState(sessionId));
+      return renderPanel(state ?? {}, panelState);
     },
   });
 };
