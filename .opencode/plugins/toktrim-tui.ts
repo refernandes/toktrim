@@ -7,7 +7,9 @@ export const id = "toktrim-tui";
 
 export const STATE_DIR = path.join(process.env.HOME ?? "", ".cache", "opencode", "toktrim", "sessions");
 
+let cachedTitle = "";
 let cachedPanel = "";
+let cachedFooter = "";
 let lastReadAt = 0;
 
 export interface SessionState {
@@ -129,6 +131,29 @@ export function resolvePanelState(sessionId?: string): PanelState {
   return resolvePanelStateFromState(sessionId, sessionId ? readState(sessionId) : null);
 }
 
+function renderTitle(panelState: PanelState): string {
+  if (panelState === PanelState.HIDDEN) {
+    return "";
+  }
+
+  return "TokTrim";
+}
+
+function renderFooter(sessionId: string | null, panelState: PanelState): string {
+  switch (panelState) {
+    case PanelState.HIDDEN:
+      return "";
+    case PanelState.ACTIVE:
+      return `~estimated  |  session: ${(sessionId ?? "").slice(0, 8)}`;
+    case PanelState.READY:
+      return "no data yet";
+    case PanelState.UNHEALTHY:
+      return "check: toktrim doctor";
+    default:
+      return "fix: .toktrim/config.toml";
+  }
+}
+
 export function renderPanel(state: Partial<SessionState> | null, panelState: PanelState): string {
   const sessionState = state ?? {};
 
@@ -155,21 +180,38 @@ export function renderPanel(state: Partial<SessionState> | null, panelState: Pan
 export const tui: TuiPlugin = async (api) => {
   api.slots.register({
     render(props) {
-      if (props.name !== "sidebar_content") {
+      if (props.name !== "sidebar_title" && props.name !== "sidebar_content" && props.name !== "sidebar_footer") {
         return null;
       }
 
       if (Date.now() - lastReadAt < 500) {
-        return cachedPanel;
+        switch (props.name) {
+          case "sidebar_title":
+            return cachedTitle;
+          case "sidebar_content":
+            return cachedPanel;
+          case "sidebar_footer":
+            return cachedFooter;
+        }
       }
 
       const sessionId = props.session_id || resolveLatestSessionId();
       const state = sessionId ? readState(sessionId) : null;
       const panelState = resolvePanelStateFromState(sessionId ?? undefined, state);
+
+      cachedTitle = renderTitle(panelState);
       cachedPanel = renderPanel(state ?? {}, panelState);
+      cachedFooter = renderFooter(sessionId ?? null, panelState);
       lastReadAt = Date.now();
 
-      return cachedPanel;
+      switch (props.name) {
+        case "sidebar_title":
+          return cachedTitle;
+        case "sidebar_content":
+          return cachedPanel;
+        case "sidebar_footer":
+          return cachedFooter;
+      }
     },
   });
 };
