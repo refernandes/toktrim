@@ -358,6 +358,65 @@ function createAfterHook(): NonNullable<Hooks["tool.execute.after"]> {
   };
 }
 
+function createCompactionSummary(state: Record<string, unknown>): string | null {
+  const lines = ["## TokTrim Session Economy"];
+
+  if (typeof state.policy_preset === "string") {
+    lines.push(`- Policy: ${state.policy_preset}`);
+  }
+
+  if (typeof state.provider_selected === "string") {
+    lines.push(`- Provider: ${state.provider_selected}`);
+  }
+
+  if (typeof state.saved_tokens === "number") {
+    const savingsSuffix = typeof state.savings_percent === "number" ? ` (~${state.savings_percent}%)` : "";
+    lines.push(`- Session saved: ${state.saved_tokens} tokens${savingsSuffix}`);
+  }
+
+  if (typeof state.last_artifact_path === "string") {
+    lines.push(`- Last artifact: ${state.last_artifact_path}`);
+  }
+
+  return lines.length > 1 ? lines.join("\n") : null;
+}
+
+function createCompactingHook(): NonNullable<Hooks["experimental.session.compacting"]> {
+  return async (_input, output) => {
+    if (!activated) {
+      return;
+    }
+
+    const statePath = path.join(getSessionDir(), "state.json");
+
+    if (!existsSync(statePath)) {
+      return;
+    }
+
+    try {
+      const state = JSON.parse(await readFile(statePath, "utf8"));
+
+      if (typeof state !== "object" || state === null) {
+        return;
+      }
+
+      if (typeof state.session_id === "string" && state.session_id !== sessionId) {
+        return;
+      }
+
+      const summary = createCompactionSummary(state as Record<string, unknown>);
+
+      if (!summary) {
+        return;
+      }
+
+      output.context.push(summary);
+    } catch {
+      return;
+    }
+  };
+}
+
 async function bootstrap(directory: string): Promise<Hooks> {
   const configPath = path.join(directory, ".toktrim", "config.toml");
 
@@ -380,6 +439,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
     return {
       tool: createTools(),
       "tool.execute.after": createAfterHook(),
+      "experimental.session.compacting": createCompactingHook(),
     };
   }
 
@@ -394,6 +454,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
   return {
     tool: createTools(),
     "tool.execute.after": createAfterHook(),
+    "experimental.session.compacting": createCompactingHook(),
   };
 }
 
