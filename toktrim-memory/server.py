@@ -1,9 +1,10 @@
-import sqlite3
 import os
+import sqlite3
 from mcp.server.fastmcp import FastMCP
 
-# Define a localização global segura para o banco de dados da IA
-DB_PATH = os.path.expanduser("~/.gemini/config/toktrim_memory.db")
+DB_PATH = os.path.expanduser(
+    os.environ.get("TOKTRIM_MEMORY_DB_PATH", "~/.cache/toktrim/memory.db")
+)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
