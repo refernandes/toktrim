@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 
@@ -18,6 +18,21 @@ const stateDir = path.join(process.env.HOME ?? "", ".cache", "opencode", "toktri
 
 let activated = false;
 let systemHintInjected = false;
+
+export interface SessionState {
+  session_id?: string;
+  policy_preset?: string;
+  provider_selected?: string;
+  baseline_tokens?: number;
+  optimized_tokens?: number;
+  saved_tokens?: number;
+  savings_percent?: number;
+  estimated_usd_saved?: number;
+  last_artifact_path?: string;
+  last_compress_at?: string;
+  session_saved_tokens?: number;
+  saved_bytes?: number;
+}
 
 function createToolError(command: string, args: string[]): ToolResult {
   return {
@@ -145,34 +160,89 @@ async function runToktrimOptimize(type: string, input: string): Promise<any> {
   ]);
 }
 
-async function writeCompressionState(patch: Record<string, unknown>): Promise<void> {
+function getStatePath() {
+  return path.join(getSessionDir(), "state.json");
+}
+
+function buildSessionPatch(result: any): Partial<SessionState> {
+  const patch: Partial<SessionState> = {
+    session_id: sessionId,
+  };
+
+  if (typeof result?.provider_selected === "string") {
+    patch.provider_selected = result.provider_selected;
+  }
+
+  if (typeof result?.policy?.preset === "string") {
+    patch.policy_preset = result.policy.preset;
+  }
+
+  if (typeof result?.artifacts?.[0]?.path === "string") {
+    patch.last_artifact_path = result.artifacts[0].path;
+  }
+
+  if (typeof result?.metrics?.baseline_tokens === "number") {
+    patch.baseline_tokens = result.metrics.baseline_tokens;
+  }
+
+  if (typeof result?.metrics?.optimized_tokens === "number") {
+    patch.optimized_tokens = result.metrics.optimized_tokens;
+  }
+
+  if (typeof result?.metrics?.saved_tokens === "number") {
+    patch.saved_tokens = result.metrics.saved_tokens;
+  }
+
+  if (typeof result?.metrics?.savings_percent === "number") {
+    patch.savings_percent = result.metrics.savings_percent;
+  }
+
+  if (typeof result?.metrics?.estimated_usd_saved === "number") {
+    patch.estimated_usd_saved = result.metrics.estimated_usd_saved;
+  }
+
+  return patch;
+}
+
+function isSuccessfulResult(result: any): boolean {
+  return Boolean(result && result.status === "ok");
+}
+
+export async function updateSessionState(patch: Partial<SessionState>): Promise<void> {
   const sessionDir = getSessionDir();
-  const statePath = path.join(sessionDir, "state.json");
+  const statePath = getStatePath();
+  const tmpPath = `${statePath}.tmp`;
 
   try {
     await mkdir(sessionDir, { recursive: true });
 
-    let current: Record<string, unknown> = {};
+    let current: SessionState = {};
 
     try {
-      current = JSON.parse(await readFile(statePath, "utf8"));
+      current = JSON.parse(await readFile(statePath, "utf8")) as SessionState;
     } catch {
       current = {};
     }
 
-    await writeFile(
-      statePath,
-      JSON.stringify(
-        {
-          ...current,
-          ...patch,
-        },
-        null,
-        2,
-      ),
-    );
-  } catch {
-    // Silent no-op: plugin must never surface hook failures.
+    const next: SessionState = {
+      ...current,
+      ...patch,
+      session_id: patch.session_id ?? current.session_id ?? sessionId,
+      session_saved_tokens:
+        (current.session_saved_tokens ?? 0) +
+        (typeof patch.saved_tokens === "number" ? patch.saved_tokens : 0),
+    };
+
+    await writeFile(tmpPath, JSON.stringify(next, null, 2), "utf8");
+    await rename(tmpPath, statePath);
+  } catch (error) {
+    console.warn("toktrim: failed to update session state", error);
+
+    try {
+      await rm(tmpPath, { force: true });
+    } catch {
+      return;
+    }
   }
 }
 
@@ -243,6 +313,11 @@ function createTools(): NonNullable<Hooks["tool"]> {
           stateDir,
         ];
         const result = await runToktrim(args);
+
+        if (isSuccessfulResult(result)) {
+          await updateSessionState(buildSessionPatch(result));
+        }
+
         return result ? createToolSuccess("estimate", result) : createToolError("estimate", args);
       },
     }),
@@ -270,6 +345,11 @@ function createTools(): NonNullable<Hooks["tool"]> {
           stateDir,
         ];
         const result = await runToktrimOptimize(type, input);
+
+        if (isSuccessfulResult(result)) {
+          await updateSessionState(buildSessionPatch(result));
+        }
+
         return result ? createToolSuccess("optimize", result) : createToolError("optimize", args);
       },
     }),
@@ -296,6 +376,11 @@ function createTools(): NonNullable<Hooks["tool"]> {
           stateDir,
         ];
         const result = await runToktrim(args);
+
+        if (isSuccessfulResult(result)) {
+          await updateSessionState(buildSessionPatch(result));
+        }
+
         return result ? createToolSuccess("repo_map", result) : createToolError("repo_map", args);
       },
     }),
@@ -346,7 +431,7 @@ function createAfterHook(): NonNullable<Hooks["tool.execute.after"]> {
           },
         };
 
-        await writeCompressionState({
+        await updateSessionState({
           last_compress_at: new Date().toISOString(),
           saved_bytes: savedBytes,
           session_id: sessionId,
