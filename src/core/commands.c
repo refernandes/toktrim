@@ -35,7 +35,8 @@ static long long get_approximate_tokens(const char* path) {
     return total_bytes / 4;
 }
 
-int run_doctor() {
+int run_doctor(int json_out) {
+    (void)json_out;
     printf("%s[INFO]%s Running toktrim doctor...\n", C_CYAN, C_RESET);
     printf("  %s[%sOK%s]%s repomix\n", C_GRAY, C_GREEN, C_GRAY, C_RESET);
     printf("  %s[%sOK%s]%s headroom\n", C_GRAY, C_GREEN, C_GRAY, C_RESET);
@@ -51,7 +52,8 @@ int run_install(const char* target) {
     return 0;
 }
 
-int run_status(toktrim_config_t* cfg) {
+int run_status(toktrim_config_t* cfg, int json_out) {
+    (void)json_out;
     printf("%s[INFO]%s TokTrim Status for Project: %s\n", C_CYAN, C_RESET, cfg->name);
     printf("  Policy Preset: %s\n", cfg->policy_preset);
     printf("  Max Tokens: %d\n", cfg->max_tokens);
@@ -154,7 +156,8 @@ int run_optimize(const char* type, const char* input, int json_out, toktrim_conf
     return success ? 0 : 1;
 }
 
-int run_benchmark(const char* type, const char* input, toktrim_config_t* cfg) {
+int run_benchmark(const char* type, const char* input, int json_out, toktrim_config_t* cfg) {
+    (void)json_out;
     long long baseline = get_approximate_tokens(input);
     if (baseline == 0) baseline = 50000;
 

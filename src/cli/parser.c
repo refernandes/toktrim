@@ -1,7 +1,14 @@
 #include "toktrim.h"
 
 int parse_args(int argc, char** argv, cli_context_t* ctx) {
+    static char default_state_dir[512];
     memset(ctx, 0, sizeof(cli_context_t));
+    char* home = getenv("HOME");
+
+    if (home) {
+        snprintf(default_state_dir, sizeof(default_state_dir), "%s/.cache/opencode/toktrim", home);
+        ctx->state_dir = default_state_dir;
+    }
     
     if (strcmp(argv[1], "doctor") == 0) {
         ctx->cmd = CMD_DOCTOR;
@@ -30,6 +37,10 @@ int parse_args(int argc, char** argv, cli_context_t* ctx) {
             ctx->type = argv[++i];
         } else if (strcmp(argv[i], "--input") == 0 && i + 1 < argc) {
             ctx->input = argv[++i];
+        } else if (strcmp(argv[i], "--session-id") == 0 && i + 1 < argc) {
+            ctx->session_id = argv[++i];
+        } else if (strcmp(argv[i], "--state-dir") == 0 && i + 1 < argc) {
+            ctx->state_dir = argv[++i];
         } else if (strcmp(argv[i], "--json") == 0) {
             ctx->json_output = 1;
         }

@@ -25,6 +25,8 @@ typedef struct {
     char* target;      // path do arquivo ou provider a instalar
     char* type;        // 'repo', 'logs', etc.
     char* input;       // arquivo input para estimate/optimize
+    char* session_id;
+    char* state_dir;
     int json_output;   // boolean para --json
 } cli_context_t;
 
@@ -71,12 +73,12 @@ void load_default_config(toktrim_config_t* cfg);
 int parse_local_config(const char* filepath, toktrim_config_t* cfg);
 
 // core
-int run_doctor();
+int run_doctor(int json_out);
 int run_install(const char* target);
-int run_status(toktrim_config_t* cfg);
+int run_status(toktrim_config_t* cfg, int json_out);
 int run_estimate(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
 int run_optimize(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
-int run_benchmark(const char* type, const char* input, toktrim_config_t* cfg);
+int run_benchmark(const char* type, const char* input, int json_out, toktrim_config_t* cfg);
 
 // cli
 int run_interactive(toktrim_config_t* cfg);

@@ -11,6 +11,8 @@ void print_help() {
     printf("  optimize --type <t> --input <f> Executa compressao c/ provider ideal\n");
     printf("\nOpcoes globais:\n");
     printf("  --json                Saida em JSON para automacao\n");
+    printf("  --session-id <id>     Identificador da sessao atual\n");
+    printf("  --state-dir <path>    Diretorio de estado do TokTrim\n");
 }
 
 int main(int argc, char** argv) {
@@ -30,17 +32,17 @@ int main(int argc, char** argv) {
 
     switch (ctx.cmd) {
         case CMD_DOCTOR:
-            return run_doctor();
+            return run_doctor(ctx.json_output);
         case CMD_INSTALL:
             return run_install(ctx.target);
         case CMD_STATUS:
-            return run_status(&cfg);
+            return run_status(&cfg, ctx.json_output);
         case CMD_ESTIMATE:
             return run_estimate(ctx.type, ctx.input, ctx.json_output, &cfg);
         case CMD_OPTIMIZE:
             return run_optimize(ctx.type, ctx.input, ctx.json_output, &cfg);
         case CMD_BENCHMARK:
-            return run_benchmark(ctx.type, ctx.input, &cfg);
+            return run_benchmark(ctx.type, ctx.input, ctx.json_output, &cfg);
         default:
             print_help();
             return 1;
