@@ -8,6 +8,7 @@ import { tool, type Hooks, type Plugin, type ToolResult } from "@opencode-ai/plu
 
 export const id = "toktrim-server";
 
+const SYSTEM_HINT = "redacted";
 const MIN_OUTPUT_BYTES = 51_200;
 const DENY_LIST = ["apply_patch", "git apply", "sed -i", "perl -pi", "tee", "patch ", "git commit", "git push"];
 const ALLOW_LIST = ["rg ", "grep ", "find ", "fd ", "tree", "git diff", "git log", "cat ", "ls -", "du ", "wc "];
@@ -16,6 +17,7 @@ const sessionId = randomUUID();
 const stateDir = path.join(process.env.HOME ?? "", ".cache", "opencode", "toktrim");
 
 let activated = false;
+let systemHintInjected = false;
 
 function createToolError(command: string, args: string[]): ToolResult {
   return {
@@ -417,6 +419,22 @@ function createCompactingHook(): NonNullable<Hooks["experimental.session.compact
   };
 }
 
+function createSystemHook(): NonNullable<Hooks["experimental.chat.system.transform"]> {
+  return async (_input, output) => {
+    if (!activated || systemHintInjected) {
+      return;
+    }
+
+    if (!Array.isArray(output.system)) {
+      console.warn("toktrim: system instruction API unavailable");
+      return;
+    }
+
+    output.system.push(SYSTEM_HINT);
+    systemHintInjected = true;
+  };
+}
+
 async function bootstrap(directory: string): Promise<Hooks> {
   const configPath = path.join(directory, ".toktrim", "config.toml");
 
@@ -439,6 +457,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
     return {
       tool: createTools(),
       "tool.execute.after": createAfterHook(),
+      "experimental.chat.system.transform": createSystemHook(),
       "experimental.session.compacting": createCompactingHook(),
     };
   }
@@ -454,6 +473,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
   return {
     tool: createTools(),
     "tool.execute.after": createAfterHook(),
+    "experimental.chat.system.transform": createSystemHook(),
     "experimental.session.compacting": createCompactingHook(),
   };
 }
