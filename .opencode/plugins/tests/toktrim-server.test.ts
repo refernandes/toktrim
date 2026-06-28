@@ -232,6 +232,31 @@ test("isEligible matches the required decision table", async () => {
   assert.equal(plugin.namespace.isEligible("edit", "grep something", 61_440), false);
 });
 
+test("isEligible returns false after unhealthy bootstrap", async () => {
+  const plugin = await loadPlugin({
+    configExists: true,
+    spawn: createSpawnWithJson({ healthy: false, status: "error", issues: ["repomix missing"], warnings: [] }),
+  });
+
+  await plugin.namespace.default({ directory: "/workspace" });
+
+  assert.equal(plugin.namespace.isEligible("bash", "grep something", 61_440), false);
+});
+
+test("tools return null when activated is false", async () => {
+  const plugin = await loadPlugin({
+    configExists: true,
+    spawn: createSpawnWithJson({ healthy: false, status: "error", issues: [] }),
+  });
+
+  const hooks = await plugin.namespace.default({ directory: "/workspace" });
+
+  if (hooks.tool?.toktrim_status) {
+    const result = await (hooks.tool.toktrim_status as { execute: () => unknown }).execute();
+    assert.equal(result, null);
+  }
+});
+
 test("updateSessionState writes and merges state atomically", async () => {
   const plugin = await loadPlugin({
     fsMock: createMemoryFs(),
@@ -270,4 +295,65 @@ test("updateSessionState does not throw on write failure", async () => {
   await plugin.namespace.updateSessionState({ saved_tokens: 10 });
 
   assert.equal(plugin.warnings.length, 1);
+});
+
+test("writeBootstrapHealthState preserves existing state on unhealthy path", async () => {
+  const fsMock = createMemoryFs();
+  fsMock.files.set("/tmp/toktrim-tests/.cache/opencode/toktrim/sessions/test-session/state.json", JSON.stringify({
+    session_id: "test-session",
+    saved_tokens: 100,
+    session_saved_tokens: 500,
+    policy_preset: "cheap-repo",
+  }));
+  await fsMock.mkdir("/tmp/toktrim-tests/.cache/opencode/toktrim/sessions/test-session", { recursive: true });
+
+  const plugin = await loadPlugin({
+    configExists: true,
+    fsMock,
+    spawn: createSpawnWithJson({ healthy: false, status: "error", issues: [] }),
+  });
+
+  await plugin.namespace.default({ directory: "/workspace" });
+
+  const state = JSON.parse(plugin.fsMock.files.get(plugin.statePath) as string);
+
+  assert.equal(state.healthy, false);
+  assert.equal(state.session_id, "test-session");
+  assert.equal(state.session_saved_tokens, 500, "should preserve session_saved_tokens");
+  assert.equal(state.saved_tokens, 100, "should preserve saved_tokens");
+});
+
+test("after hook does not throw on any input", async () => {
+  const plugin = await loadPlugin({
+    configExists: true,
+    spawn: createSpawnWithJson({ version: 1, command: "optimize", status: "ok", artifacts: [{ path: "/tmp/artifact.xml" }] }),
+  });
+
+  const hooks = await plugin.namespace.default({ directory: "/workspace" });
+
+  const afterHook = hooks["tool.execute.after"];
+
+  if (afterHook) {
+    await afterHook(
+      { tool: "bash", args: { command: "grep something" }, callID: "call-1" },
+      { output: "x".repeat(60_000) },
+    );
+  }
+
+  assert.ok(true, "after hook did not throw");
+});
+
+test("compacting hook does not throw when no state", async () => {
+  const plugin = await loadPlugin({
+    fsMock: createMemoryFs(),
+  });
+
+  const hooks = await plugin.namespace.default({ directory: "/workspace" });
+  const compactingHook = hooks["experimental.session.compacting"];
+
+  if (compactingHook) {
+    const output = { context: [] as string[] };
+    await compactingHook({}, output);
+    assert.equal(output.context.length, 0);
+  }
 });
