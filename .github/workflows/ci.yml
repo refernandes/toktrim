@@ -26,9 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: .opencode/package.json
       - name: Install deps
-        run: npm --prefix .opencode ci
+        run: npm --prefix .opencode install
       - name: TypeScript tests
         run: npm --prefix .opencode test
