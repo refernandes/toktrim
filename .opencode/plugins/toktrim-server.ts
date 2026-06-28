@@ -32,6 +32,7 @@ export interface SessionState {
   last_compress_at?: string;
   session_saved_tokens?: number;
   saved_bytes?: number;
+  healthy?: boolean;
 }
 
 function createToolError(command: string, args: string[]): ToolResult {
@@ -237,6 +238,35 @@ export async function updateSessionState(patch: Partial<SessionState>): Promise<
     await rename(tmpPath, statePath);
   } catch (error) {
     console.warn("toktrim: failed to update session state", error);
+
+    try {
+      await rm(tmpPath, { force: true });
+    } catch {
+      return;
+    }
+  }
+}
+
+async function writeBootstrapHealthState(healthy: boolean): Promise<void> {
+  if (healthy) {
+    await updateSessionState({ healthy: true, session_id: sessionId });
+    return;
+  }
+
+  const sessionDir = getSessionDir();
+  const statePath = getStatePath();
+  const tmpPath = `${statePath}.tmp`;
+
+  try {
+    await mkdir(sessionDir, { recursive: true });
+    await writeFile(
+      tmpPath,
+      JSON.stringify({ session_id: sessionId, healthy: false }, null, 2),
+      "utf8",
+    );
+    await rename(tmpPath, statePath);
+  } catch (error) {
+    console.warn("toktrim: failed to write bootstrap health state", error);
 
     try {
       await rm(tmpPath, { force: true });
@@ -539,6 +569,8 @@ async function bootstrap(directory: string): Promise<Hooks> {
   ]);
 
   if (!doctor || doctor.healthy !== true) {
+    await writeBootstrapHealthState(false);
+
     return {
       tool: createTools(),
       "tool.execute.after": createAfterHook(),
@@ -547,6 +579,7 @@ async function bootstrap(directory: string): Promise<Hooks> {
     };
   }
 
+  await writeBootstrapHealthState(true);
   activated = true;
   console.log("toktrim: activated", {
     healthy: doctor.healthy,
