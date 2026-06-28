@@ -1,4 +1,5 @@
 #include "toktrim.h"
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <ftw.h>
 
@@ -12,6 +13,33 @@
 #define C_GRAY    "\033[90m"
 
 static long long total_bytes = 0;
+
+static int detect_binary_in_path(const char* binary_path, char* const argv[]) {
+    int null_fd = open("/dev/null", O_WRONLY);
+    int stdout_fd = dup(STDOUT_FILENO);
+    int stderr_fd = dup(STDERR_FILENO);
+    int status;
+
+    if (null_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
+        if (null_fd != -1) close(null_fd);
+        if (stdout_fd != -1) close(stdout_fd);
+        if (stderr_fd != -1) close(stderr_fd);
+        return 0;
+    }
+
+    dup2(null_fd, STDOUT_FILENO);
+    dup2(null_fd, STDERR_FILENO);
+    close(null_fd);
+
+    status = safe_exec(binary_path, argv);
+
+    dup2(stdout_fd, STDOUT_FILENO);
+    dup2(stderr_fd, STDERR_FILENO);
+    close(stdout_fd);
+    close(stderr_fd);
+
+    return status == 0;
+}
 
 static int sum_file_sizes(const char *fpath, const struct stat *sb, int tflag) {
     (void)fpath;
@@ -36,11 +64,66 @@ static long long get_approximate_tokens(const char* path) {
 }
 
 int run_doctor(int json_out) {
-    (void)json_out;
+    const char* config_path = ".toktrim/config.toml";
+    int config_exists = access(config_path, F_OK) == 0;
+    int config_parseable = 0;
+    int repomix_in_path;
+    int headroom_in_path;
+    int repomix_enabled;
+    int headroom_enabled;
+    int repomix_healthy;
+    int headroom_healthy;
+    int healthy;
+    toktrim_config_t cfg;
+    char* repomix_args[] = {"repomix", "--version", NULL};
+    char* headroom_args[] = {"headroom", "--version", NULL};
+
+    load_default_config(&cfg);
+    if (config_exists && parse_local_config(config_path, &cfg) == 0) {
+        config_parseable = 1;
+    }
+
+    repomix_in_path = detect_binary_in_path("repomix", repomix_args);
+    headroom_in_path = detect_binary_in_path("headroom", headroom_args);
+    repomix_enabled = cfg.repomix.enabled;
+    headroom_enabled = cfg.headroom.enabled;
+    repomix_healthy = !repomix_enabled || repomix_in_path;
+    headroom_healthy = !headroom_enabled || headroom_in_path;
+    healthy = config_exists && config_parseable && repomix_healthy && headroom_healthy;
+
+    if (json_out) {
+        printf("{\n");
+        printf("  \"version\": 1,\n");
+        printf("  \"command\": \"doctor\",\n");
+        printf("  \"status\": \"ok\",\n");
+        printf("  \"healthy\": %s,\n", healthy ? "true" : "false");
+        printf("  \"config\": {\n");
+        printf("    \"path\": \"%s\",\n", config_path);
+        printf("    \"exists\": %s,\n", config_exists ? "true" : "false");
+        printf("    \"parseable\": %s\n", config_parseable ? "true" : "false");
+        printf("  },\n");
+        printf("  \"providers\": [\n");
+        printf("    {\"id\":\"repomix\",\"enabled\":%s,\"in_path\":%s,\"healthy\":%s},\n",
+               repomix_enabled ? "true" : "false",
+               repomix_in_path ? "true" : "false",
+               repomix_healthy ? "true" : "false");
+        printf("    {\"id\":\"headroom\",\"enabled\":%s,\"in_path\":%s,\"healthy\":%s}\n",
+               headroom_enabled ? "true" : "false",
+               headroom_in_path ? "true" : "false",
+               headroom_healthy ? "true" : "false");
+        printf("  ],\n");
+        printf("  \"issues\": [],\n");
+        printf("  \"warnings\": []\n");
+        printf("}\n");
+        return healthy ? 0 : 1;
+    }
+
     printf("%s[INFO]%s Running toktrim doctor...\n", C_CYAN, C_RESET);
-    printf("  %s[%sOK%s]%s repomix\n", C_GRAY, C_GREEN, C_GRAY, C_RESET);
-    printf("  %s[%sOK%s]%s headroom\n", C_GRAY, C_GREEN, C_GRAY, C_RESET);
-    return 0;
+    printf("  config: %s\n", config_exists ? (config_parseable ? C_GREEN "ok" C_RESET : C_RED "invalid" C_RESET) : C_RED "missing" C_RESET);
+    printf("  repomix: %s\n", repomix_enabled ? (repomix_in_path ? C_GREEN "enabled + found" C_RESET : C_RED "enabled + missing" C_RESET) : C_GRAY "disabled" C_RESET);
+    printf("  headroom: %s\n", headroom_enabled ? (headroom_in_path ? C_GREEN "enabled + found" C_RESET : C_RED "enabled + missing" C_RESET) : C_GRAY "disabled" C_RESET);
+    printf("  health: %s\n", healthy ? C_GREEN "healthy" C_RESET : C_RED "unhealthy" C_RESET);
+    return healthy ? 0 : 1;
 }
 
 int run_install(const char* target) {
