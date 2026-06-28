@@ -1,5 +1,7 @@
 # TokTrim
 
+![CI](https://github.com/refernandes/toktrim/actions/workflows/ci.yml/badge.svg)
+
 ## What it is
 
 TokTrim is a C engine for token economy in agentic workflows, with native plugins for opencode. It compresses context, estimates savings, and tracks session economics without external API calls.

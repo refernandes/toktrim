@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-c:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install repomix
+        run: npm install -g repomix
+      - name: Build
+        run: make
+      - name: C contract tests
+        run: make test-contract
+
+  test-ts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: .opencode/package.json
+      - name: Install deps
+        run: npm --prefix .opencode ci
+      - name: TypeScript tests
+        run: npm --prefix .opencode test
