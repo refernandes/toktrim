@@ -1,4 +1,8 @@
 repomix-output.xml
+repomix-output.md
+compressed_output
+compressed*.log
+*.toktrim-artifact
 obj/
 toktrim
 test_cli
