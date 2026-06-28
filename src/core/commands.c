@@ -136,7 +136,25 @@ int run_install(const char* target) {
 }
 
 int run_status(toktrim_config_t* cfg, int json_out) {
-    (void)json_out;
+    if (json_out) {
+        printf("{\n");
+        printf("  \"version\": 1,\n");
+        printf("  \"command\": \"status\",\n");
+        printf("  \"status\": \"ok\",\n");
+        printf("  \"policy\": {\n");
+        printf("    \"preset\": \"%s\",\n", cfg->policy_preset);
+        printf("    \"max_tokens\": %d\n", cfg->max_tokens);
+        printf("  },\n");
+        printf("  \"providers\": {\n");
+        printf("    \"repomix\": {\"enabled\": %s},\n", cfg->repomix.enabled ? "true" : "false");
+        printf("    \"headroom\": {\"enabled\": %s}\n", cfg->headroom.enabled ? "true" : "false");
+        printf("  },\n");
+        printf("  \"warnings\": [],\n");
+        printf("  \"errors\": []\n");
+        printf("}\n");
+        return 0;
+    }
+
     printf("%s[INFO]%s TokTrim Status for Project: %s\n", C_CYAN, C_RESET, cfg->name);
     printf("  Policy Preset: %s\n", cfg->policy_preset);
     printf("  Max Tokens: %d\n", cfg->max_tokens);
