@@ -11,10 +11,14 @@
       "types": "./dist/index.d.ts"
     },
     "./tui": {
-      "import": "./dist/tui.js",
-      "types": "./dist/tui.d.ts"
+      "import": "./dist/tui/index.js",
+      "types": "./dist/tui/index.d.ts"
     }
   },
+  "oc-plugin": [
+    "server",
+    "tui"
+  ],
   "files": [
     "dist"
   ],
