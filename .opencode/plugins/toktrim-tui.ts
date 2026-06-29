@@ -177,41 +177,31 @@ export function renderPanel(state: Partial<SessionState> | null, panelState: Pan
   ].join("\n");
 }
 
+function refresh(force = false) {
+  if (!force && Date.now() - lastReadAt < 500) return;
+  const sessionId = resolveLatestSessionId();
+  const state = sessionId ? readState(sessionId) : null;
+  const panelState = resolvePanelStateFromState(sessionId ?? undefined, state);
+  cachedTitle = renderTitle(panelState);
+  cachedPanel = renderPanel(state ?? {}, panelState);
+  cachedFooter = renderFooter(sessionId ?? null, panelState);
+  lastReadAt = Date.now();
+}
+
 export const tui: TuiPlugin = async (api) => {
+  refresh(true);
   api.slots.register({
-    render(props) {
-      if (props.name !== "sidebar_title" && props.name !== "sidebar_content" && props.name !== "sidebar_footer") {
-        return null;
-      }
-
-      if (Date.now() - lastReadAt < 500) {
-        switch (props.name) {
-          case "sidebar_title":
-            return cachedTitle;
-          case "sidebar_content":
-            return cachedPanel;
-          case "sidebar_footer":
-            return cachedFooter;
-        }
-      }
-
-      const sessionId = props.session_id || resolveLatestSessionId();
-      const state = sessionId ? readState(sessionId) : null;
-      const panelState = resolvePanelStateFromState(sessionId ?? undefined, state);
-
-      cachedTitle = renderTitle(panelState);
-      cachedPanel = renderPanel(state ?? {}, panelState);
-      cachedFooter = renderFooter(sessionId ?? null, panelState);
-      lastReadAt = Date.now();
-
-      switch (props.name) {
-        case "sidebar_title":
-          return cachedTitle;
-        case "sidebar_content":
-          return cachedPanel;
-        case "sidebar_footer":
-          return cachedFooter;
-      }
+    order: 10,
+    slots: {
+      sidebar_title: () => cachedTitle,
+      sidebar_content: () => {
+        refresh();
+        return cachedPanel;
+      },
+      sidebar_footer: () => {
+        refresh();
+        return cachedFooter;
+      },
     },
   });
 };

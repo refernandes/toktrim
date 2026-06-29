@@ -1,6 +1,6 @@
 {
   "name": "toktrim-plugins",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "toktrim economy plugins for OpenCode",
   "type": "module",
   "main": "dist/index.js",
@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./tui": {
+      "import": "./dist/tui.js",
+      "types": "./dist/tui.d.ts"
     }
   },
   "files": [

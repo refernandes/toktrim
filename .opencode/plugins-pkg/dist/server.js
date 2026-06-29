@@ -1,4 +1,4 @@
-// plugins/toktrim-server.ts
+// ../plugins/toktrim-server.ts
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
